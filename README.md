@@ -1,2 +1,1 @@
-# Inventory
-For Khan's boss or something
+A basic inventory tracker to help a friend's boss with basic management.
