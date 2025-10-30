@@ -1,11 +1,12 @@
 import { useState, useEffect} from 'react';
 import { NavLink } from 'react-router-dom';
-import type { Container, Item, Category } from '../storage';
+import type { Container, Item, Category, Audit } from '../storage';
 import { storage } from '../storage'
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+	const [audits, setAudits] = useState<Audit[]>([])
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -13,13 +14,20 @@ const Inventory = () => {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState('1');
 	const [username, setUsername] = useState('')
+	const [unsure, setUnsure] = useState(false)
 
   useEffect(() => {
     setContainers(storage.getContainers());
     setCategories(storage.getCategories());
+		setUsername(storage.getLastUser())
+    setAudits(storage.getAudits());
   }, []);
 
   const addContainer = () => {
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
     if (!newContainerName.trim()) return;
 
     const isDuplicate = containers.some(
@@ -37,19 +45,48 @@ const Inventory = () => {
       items: [],
     };
 
-    const updated = [...containers, newContainer];
-    setContainers(updated);
-    storage.saveContainers(updated);
+		const newAudit: Audit = {
+			message: username + " added a container. (" + newContainer.name + ")",
+			user: username,
+			time: new Date(Date.now())
+		}
+
+    const updatedContainers = [...containers, newContainer];
+    const updatedAudits = [...audits, newAudit];
+    setContainers(updatedContainers);
+		setAudits(updatedAudits);
+    storage.saveContainers(updatedContainers);
+    storage.saveAudits(updatedAudits);
     setNewContainerName('');
   };
 
   const deleteContainer = (id: string) => {
-    const containerToDelete = containers.filter(c => c.id !== id);
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
+
+		const containerDeleted = containers.find(c => c.id === id);
+
+		const newAudit: Audit = {
+			message: username + " deleted a container. (" + containerDeleted!.name + ")",
+			user: username,
+			time: new Date(Date.now())
+		}
+
+		const updateAudits = [...audits, newAudit]
+		const containerToDelete = containers.filter(c => c.id !== id);
     setContainers(containerToDelete);
+		setAudits(updateAudits)
     storage.saveContainers(containerToDelete);
+		storage.saveAudits(updateAudits)
   };
 
   const addItem = (containerId: string) => {
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
     if (!selectedBrand || !selectedStyle || !selectedSize || !quantity) return;
 
     const category = categories.find(
@@ -58,18 +95,26 @@ const Inventory = () => {
 
     if (!category) return;
 
-    const newItem: Item = {
-      id: Date.now().toString(),
-      categoryId: category.id,
-      quantity: parseInt(quantity),
+    const itemContainer = containers.find(c => c.id === containerId)
+    const existing = itemContainer?.items.find(i => i.categoryId === category.id);
+    let updatedContainers: Container[];
+
+		const incrementBy = parseInt(quantity);
+		updatedContainers = containers.map(c => c.id === containerId ? {...c, items: c.items.map(i => i.id === existing!.id ? { ...i, quantity: i.quantity + incrementBy } : i)} : c);
+  
+
+    const newAudit: Audit = {
+      message: `${username} increased '${category.size} ${category.brand} ${category.style}' by ${incrementBy}. (${itemContainer!.name})`,
+      user: username,
+      time: new Date(Date.now()),
     };
 
-    const updated = containers.map(c =>
-      c.id === containerId ? { ...c, items: [...c.items, newItem] } : c
-    );
+    const updateAudits = [...audits, newAudit];
 
-    setContainers(updated);
-    storage.saveContainers(updated);
+    setContainers(updatedContainers);
+    setAudits(updateAudits);
+    storage.saveContainers(updatedContainers);
+    storage.saveAudits(updateAudits);
     setAddingItemTo(null);
     setSelectedBrand('');
     setSelectedStyle('');
@@ -78,15 +123,55 @@ const Inventory = () => {
   };
 
   const deleteItem = (containerId: string, itemId: string) => {
-    const itemToDelete = containers.map(c =>
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
+
+		const itemContainer = containers.find(c => c.id === containerId)
+		const itemDeleted = itemContainer?.items.find(c => c.id == itemId)
+		const itemToDelete = containers.map(c =>
       c.id === containerId
         ? { ...c, items: c.items.filter(i => i.id !== itemId) }
         : c
     );
 
-    setContainers(itemToDelete);
-    storage.saveContainers(itemToDelete);
-  };
+		const category = getCategoryInfo(itemDeleted!.categoryId);
+		const newAudit: Audit = {
+			message: username + " deleted " + category!.size + " " + category!.brand + " " + category!.style + " from a container. (" + itemContainer!.name + ")",
+			user: username,
+			time: new Date(Date.now())
+		}
+
+		const updatedAudits = [...audits, newAudit];
+		setContainers(itemToDelete);
+		setAudits(updatedAudits);
+		storage.saveContainers(itemToDelete);
+		storage.saveAudits(updatedAudits);
+	};
+
+	const clearContainers = () => {
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
+		if (!unsure) {
+			alert('Are you sure you want to clear all containers? \nIf so, press Clear All Containers again.');
+			setUnsure(true);
+			return;
+		}
+		setContainers([]);
+		storage.saveContainers([]);
+		const newAudit: Audit = {
+			message: `${username} cleared all containers.`,
+			user: username,
+			time: new Date(Date.now()),
+		};
+		const updatedAudits = [...audits, newAudit];
+		setAudits(updatedAudits);
+		storage.saveAudits(updatedAudits);
+		setUnsure(false);
+	};
 
   const getCategoryInfo = (categoryId: string) => {
     return categories.find(c => c.id === categoryId);
@@ -114,7 +199,7 @@ const Inventory = () => {
 				<input               
 					type="text"
 					value={username}
-					onChange={(e) => setUsername(e.target.value)}
+					onChange={(e) => { setUsername(e.target.value); storage.saveLastUser(e.target.value); }}
 					placeholder="Enter Username"
 					className="block flex place-self-center px-2 py-1 text-center bg-background border mx-auto rounded-md mb-4"/>
 
@@ -142,13 +227,13 @@ const Inventory = () => {
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
             {containers.map((container) => (
-                <div key={container.id} className="border rounded-lg p-6">
+                <div key={container.id} className="shadow-lg border rounded-lg p-6 hover:scale-105 duration-500">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-semibold">{container.name}</h3>
                     <button
                       onClick={() => deleteContainer(container.id)}
-                      className="px-3 py-1 bg-red-600 rounded-md text-sm text-white">
-                      Delete
+                      className="bg-red-600 rounded-md text-sm text-white">
+                      <img src="/delete.png" className='h-8 inline-block' />
                     </button>
                   </div>
 
@@ -156,7 +241,7 @@ const Inventory = () => {
 									<div className="mb-4">
 										{container.items.map((item) => {
 											const cat = getCategoryInfo(item.categoryId);
-											return (
+	return (
 												<div
 													key={item.id}
 													className="flex justify-between items-center p-1 rounded">
@@ -168,8 +253,8 @@ const Inventory = () => {
 													</div>
 													<button
 														onClick={() => deleteItem(container.id, item.id)}
-														className="px-3 py-1 rounded-md text-sm bg-pink-400 text-white">
-														Remove
+														className="px-3 py-1 rounded-md text-sm bg-pink-400 font-black text-white">
+														-
 													</button>
 												</div>
 											);
@@ -274,14 +359,14 @@ const Inventory = () => {
           </div>
         )}
       </div>
-			<button className='border bg-red-600 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto mb-2 w-1/6'>Clear All Containers</button>
+			<button onClick={clearContainers} className='border bg-red-600 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto mb-2 flex-1'>Clear All Containers</button>
 			<NavLink to="/categories">
-				<button className='border bg-blue-400 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto mb-2 w-1/6'>Add Categories</button>
+				<button className='border bg-blue-400 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto mb-2 flex-1'>Add Categories</button>
 			</NavLink>
 			<NavLink to="/auditlogs">
-				<button className='border bg-orange-400 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto w-1/6'>View Audit Logs</button>
+				<button className='border bg-orange-400 text-lg font-semibold text-white px-3 py-2 rounded-xl block mx-auto flex-1'>View Audit Logs</button>
 			</NavLink>
-    </div>
+		</div>
   );
 };
 

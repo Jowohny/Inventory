@@ -43,7 +43,12 @@ export const storage = {
 
 	getAudits: (): Audit[] => {
 		const data = localStorage.getItem(STORAGE_KEYS.AUDITLOGS)
-		return data ? JSON.parse(data) : [];
+		if (!data) return [];
+		const audits = JSON.parse(data);
+		return audits.map((a: Audit) => ({
+			...a,
+			time: new Date(a.time)
+		}));
 	},
 
 	getLastUser: (): string => {
