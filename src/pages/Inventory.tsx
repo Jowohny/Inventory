@@ -278,14 +278,14 @@ const Inventory = () => {
             {containers.map((container) => (
               <div
                 key={container.id}
-                className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-shadow hover:shadow-lg">
+                className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-all hover:shadow-xl hover:scale-101 duration-300">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-2xl font-semibold text-gray-800">
                     {container.name}
                   </h3>
                   <button
                     onClick={() => deleteContainer(container.id)}
-                    className="flex-shrink-0 bg-red-600 rounded-full p-2 hover:bg-red-200 transition-colors">
+                    className="flex-shrink-0 bg-red-500 rounded-full p-2 hover:bg-red-700 transition-colors">
                     <img src="/delete.png" className="h-5 w-5" alt="Delete" />
                   </button>
                 </div>
@@ -307,7 +307,7 @@ const Inventory = () => {
                         </div>
                         <button
                           onClick={() => deleteItem(container.id, item.id)}
-                          className="flex-shrink-0 px-2 py-0.5 rounded-md text-sm bg-pink-200 font-bold text-pink-800 hover:bg-pink-300 transition-colors">
+                          className="flex-shrink-0 px-3 py-0.5 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500 duration-400">
                           -
                         </button>
                       </div>
