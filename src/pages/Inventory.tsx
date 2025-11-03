@@ -12,9 +12,11 @@ const Inventory = () => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
-  const [quantity, setQuantity] = useState('1');
+	const [quantity, setQuantity] = useState('1');
 	const [username, setUsername] = useState('')
 	const [unsure, setUnsure] = useState(false)
+	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
 
   useEffect(() => {
     setContainers(storage.getContainers());
@@ -171,9 +173,7 @@ const Inventory = () => {
 		const itemContainer = containers.find(c => c.id === containerId)
 		const itemDeleted = itemContainer?.items.find(c => c.id == itemId)
 		const itemToDelete = containers.map(c =>
-      c.id === containerId
-        ? { ...c, items: c.items.filter(i => i.id !== itemId) }
-        : c
+      c.id === containerId ? { ...c, items: c.items.filter(i => i.id !== itemId) } : c
     );
 
 		const category = getCategoryInfo(itemDeleted!.categoryId);
@@ -181,13 +181,65 @@ const Inventory = () => {
 			message: `${username} deleted ${category!.size} ${category!.brand} ${category!.style} from a container. (${itemContainer!.name})`,
 			user: username,
 			time: new Date(Date.now())
-		}
+		};
 
 		const updatedAudits = [...audits, newAudit];
 		setContainers(itemToDelete);
 		setAudits(updatedAudits);
 		storage.saveContainers(itemToDelete);
 		storage.saveAudits(updatedAudits);
+	};
+
+	const updateItemQuantity = (containerId: string, itemId: string, newQuantity: number) => {
+		if (username.length === 0) {
+			alert("Please enter a username before you make any changes...");
+			return;
+		}
+
+		const itemContainer = containers.find(c => c.id === containerId);
+		const item = itemContainer?.items.find(i => i.id === itemId);
+		if (!item || !itemContainer) return;
+
+		const oldQuantity = item.quantity;
+		if (newQuantity === oldQuantity) {
+			setEditingQuantity(null);
+			return;
+		}
+
+		const category = getCategoryInfo(item.categoryId);
+		const updatedContainers = containers.map(c =>
+			c.id === containerId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity }: i)}: c
+		);
+
+		const newAudit: Audit = {
+			message: `${username} changed quantity of '${category!.size} ${category!.brand} ${category!.style}' from ${oldQuantity} to ${newQuantity}. (${itemContainer.name})`,
+			user: username,
+			time: new Date(Date.now()),
+		};
+
+		const updatedAudits = [...audits, newAudit];
+		setContainers(updatedContainers);
+		setAudits(updatedAudits);
+		storage.saveContainers(updatedContainers);
+		storage.saveAudits(updatedAudits);
+		setEditingQuantity(null);
+	};
+
+	const startEditQuantity = (itemId: string, currentQuantity: number) => {
+		setEditingQuantity(itemId);
+		setEditingQuantityValue(currentQuantity.toString());
+	};
+
+	const saveQuantity = (containerId: string, itemId: string) => {
+		const numValue = parseInt(editingQuantityValue);
+		if (!isNaN(numValue) && numValue >= 0) {
+			updateItemQuantity(containerId, itemId, numValue);
+		}
+	};
+
+	const cancelEditQuantity = () => {
+		setEditingQuantity(null);
+		setEditingQuantityValue('');
 	};
 
 	const clearContainers = () => {
@@ -286,7 +338,7 @@ const Inventory = () => {
                   <button
                     onClick={() => deleteContainer(container.id)}
                     className="flex-shrink-0 bg-red-500 rounded-full p-2 hover:bg-red-700 transition-colors">
-                    <img src="/delete.png" className="h-5 w-5" alt="Delete" />
+                    <img src="/delete.png" className="h-5 w-5" alt="Delete"/>
                   </button>
                 </div>
 
@@ -297,19 +349,50 @@ const Inventory = () => {
                       <div
                         key={item.id}
                         className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
-                        <div className="text-sm">
+                        <div className="text-sm flex-1">
                           <span className="font-medium text-gray-800">
 														{cat!.brand} - {cat!.style} - {cat!.size}
                           </span>
                           <span className="ml-3 text-gray-500">
-                            Qty: {item.quantity}
-                          </span>
+														Qty: {item.quantity}
+													</span>
                         </div>
-                        <button
-                          onClick={() => deleteItem(container.id, item.id)}
-                          className="flex-shrink-0 px-3 py-0.5 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500 duration-400">
-                          -
-                        </button>
+                        <div className="flex gap-2 items-center">
+													{editingQuantity === item.id ? (
+														<div>
+															<input 
+																type="number"
+																min="0"
+																value={editingQuantityValue}
+																onChange={(e) => setEditingQuantityValue(e.target.value)}
+																className="w-20 px-2 py-1 ml-2 border border-blue-500 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+															/>
+															<button
+																onClick={() => saveQuantity(container.id, item.id)}
+																className="px-3 py-1 ml-2 rounded-md text-sm bg-green-500 text-white font-medium hover:bg-green-600">
+																Save
+															</button>
+															<button
+																onClick={cancelEditQuantity}
+																className="px-3 py-1 ml-2 rounded-md text-sm bg-gray-500 text-white font-medium hover:bg-gray-600">
+																Cancel
+															</button>
+														</div>
+													) : (
+														<div>
+															<button
+																onClick={() => startEditQuantity(item.id, item.quantity)}
+																className="px-3 py-1 ml-2 rounded-md text-sm bg-blue-500 text-white font-medium hover:bg-blue-600">
+																Edit
+															</button>
+															<button
+																onClick={() => deleteItem(container.id, item.id)}
+																className="px-3 py-1 ml-2 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500">
+																-
+															</button>
+														</div>
+													)}
+												</div>
                       </div>
                     );
                   })}
@@ -330,6 +413,7 @@ const Inventory = () => {
                           setSelectedStyle('');
                           setSelectedSize('');
                         }}
+
                         className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Choose brand...</option>
                         {getBrands().map((brand) => (
@@ -384,17 +468,19 @@ const Inventory = () => {
                       </div>
                     )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500"/>
-                    </div>
+										{selectedBrand && selectedStyle && selectedSize && (
+											<div>
+												<label className="block text-sm font-medium text-gray-700 mb-1">
+													Quantity
+												</label>
+												<input
+													type="number"
+													min="1"
+													value={quantity}
+													onChange={(e) => setQuantity(e.target.value)}
+													className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500"/>
+											</div>
+										)}
 
                     <div className="flex gap-3 pt-2">
                       <button
