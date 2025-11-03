@@ -4,36 +4,43 @@ import type { Audit } from "../storage"
 import { NavLink } from "react-router-dom"
 
 const AuditLogs = () => {
-	const [auditLogs, setAuditLogs] = useState<Audit[]>([])
-	const [unsure, setUnsure] = useState<boolean>(false)
-	const [username, setUsername] = useState<string>('')
-	const [currentPage, setCurrentPage] = useState<number>(0)
-	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([])
-	const [maxPages, setMaxPages] = useState<number>(0)
-	const paginCount: number = 8
+	const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
+	const [unsure, setUnsure] = useState<boolean>(false);
+	const [username, setUsername] = useState<string>('');
+	const [currentPage, setCurrentPage] = useState<number>(0);
+	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([]);
+	const [maxPages, setMaxPages] = useState<number>(0);
+	const [userFilter, setUserFilter] = useState<string>('');
+	const paginCount: number = 8;
 
 	useEffect(() => {
+		setUsername(storage.getLastUser());
 		setAuditLogs(storage.getAudits().reverse())
-		setUsername(storage.getLastUser())
 	}, [])
 
 	useEffect(() => {
-		const pageItems: Audit[] = []
-		const totalPages = Math.ceil(auditLogs.length/paginCount);
-		setMaxPages(totalPages);
-		if (currentPage >= totalPages && totalPages > 0) {
-			setCurrentPage(totalPages - 1);
+		let filterUser: Audit[] = [];
+		if (userFilter !== '') {
+			filterUser = auditLogs.filter(c => c.user === userFilter);
+			if (Math.ceil(filterUser.length/paginCount) < maxPages) {
+				setCurrentPage(Math.ceil(filterUser.length/paginCount)-1)
+			}
+		} else {
+			filterUser = auditLogs;
 		}
+		const pageItems: Audit[] = [];
+		const totalPages = Math.ceil(filterUser.length/paginCount);
+		setMaxPages(totalPages);
 
-		for (let i: number = currentPage * paginCount; i < (currentPage * paginCount) + paginCount && i < auditLogs.length; i++) {
-			if (auditLogs[i]) {
-				pageItems.push(auditLogs[i]);
+		for (let i: number = currentPage * paginCount; i < (currentPage * paginCount) + paginCount; i++) {
+			if (filterUser[i]) {
+				pageItems.push(filterUser[i]);
 			} else {
 				break;
 			}
 		}
-		setCurrentPaginate(pageItems)
-	}, [auditLogs, currentPage])
+		setCurrentPaginate(pageItems);
+	}, [auditLogs, currentPage, userFilter])
 
 	const paginate = (direction: string) => {
 		if (direction === 'previous' && currentPage > 0) {
@@ -64,6 +71,11 @@ const AuditLogs = () => {
 		}
 	}
 
+	const getUsers = () => {
+		const users = auditLogs.map(c => c.user)
+		return [...new Set(users)]
+	}
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
@@ -79,7 +91,28 @@ const AuditLogs = () => {
           }}
           placeholder="Enter Username"
           className="block w-full max-w-xs mx-auto px-4 py-2 text-center bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-6"/>
+				<div className="bg-slate-200 justify-around flex flex-col p-4 mb-2 rounded-lg">
+					<h1 className="text-2xl font-semibold text-center tracking-wide block flex-1">
+						Filter By:
+					</h1>
+					<span>
+						<label className="block text-sm font-medium text-gray-700 mb-1">
+							Name:
+						</label>
+						<select
+							value={userFilter}
+							onChange={(e) => { setUserFilter(e.target.value) }}
 
+							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+							<option value="">Choose user...</option>
+							{getUsers().map((user) => (
+								<option key={user} value={user}>
+									{user}
+								</option>
+							))}
+						</select>
+					</span>
+				</div>
         <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
           {auditLogs.length === 0 ? (
             <p className="text-gray-500 text-lg text-center p-6">

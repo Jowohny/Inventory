@@ -1,4 +1,4 @@
-import { useState, useEffect} from 'react';
+import { useState, useEffect, useMemo} from 'react';
 import { NavLink } from 'react-router-dom';
 import type { Container, Item, Category, Audit } from '../storage';
 import { storage } from '../storage'
@@ -9,6 +9,7 @@ const Inventory = () => {
 	const [audits, setAudits] = useState<Audit[]>([])
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
+	const [openTotal, setOpenTotal] = useState<boolean>(false)
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -61,6 +62,16 @@ const Inventory = () => {
     storage.saveAudits(updatedAudits);
     setNewContainerName('');
   };
+
+	const totalInventory = useMemo(() => {
+		const groups: { [categoryId: string]: number } = {};
+		containers.forEach((container) => {
+			container.items.forEach((item) => {
+				groups[item.categoryId] = (groups[item.categoryId] ?? 0) + item.quantity;
+			});
+		});
+		return groups;
+	}, [containers]);
 
   const deleteContainer = (id: string) => {
 		if (username.length === 0) {
@@ -117,17 +128,8 @@ const Inventory = () => {
 
     if (existingItem) {
       updatedContainers = containers.map((c) =>
-        c.id === containerId
-          ? {
-              ...c,
-              items: c.items.map((i) =>
-                i.id === existingItem.id
-                  ? { ...i, quantity: i.quantity + incrementBy } 
-                  : i
-              ),
-            }
-          : c
-      );
+        c.id === containerId ? { ...c, items: c.items.map((i) => i.id === existingItem.id ? { ...i, quantity: i.quantity + incrementBy } : i )} : c
+		);
     } else {
       const newItem: Item = {
         id: Date.now().toString(),
@@ -136,13 +138,8 @@ const Inventory = () => {
       };
 
       updatedContainers = containers.map((c) =>
-        c.id === containerId
-          ? {
-              ...c,
-              items: [...c.items, newItem],
-            }
-          : c
-      );
+        c.id === containerId ? { ...c,items: [...c.items, newItem] } : c 
+			);
     }
 
     const newAudit: Audit = {
@@ -198,6 +195,7 @@ const Inventory = () => {
 
 		const itemContainer = containers.find(c => c.id === containerId);
 		const item = itemContainer?.items.find(i => i.id === itemId);
+		let newAudit: Audit;
 		if (!item || !itemContainer) return;
 
 		const oldQuantity = item.quantity;
@@ -208,14 +206,25 @@ const Inventory = () => {
 
 		const category = getCategoryInfo(item.categoryId);
 		const updatedContainers = containers.map(c =>
-			c.id === containerId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity }: i)}: c
+			c.id === containerId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity }: i )}: c
 		);
 
-		const newAudit: Audit = {
-			message: `${username} changed quantity of '${category!.size} ${category!.brand} ${category!.style}' from ${oldQuantity} to ${newQuantity}. (${itemContainer.name})`,
-			user: username,
-			time: new Date(Date.now()),
-		};
+		if (newQuantity === oldQuantity) {
+			return;
+		} else if (newQuantity > oldQuantity) {
+			newAudit = {
+				message: `${username} added ${newQuantity-oldQuantity} to '${category!.size} ${category!.brand} ${category!.style}'. (${oldQuantity} -> ${newQuantity}) (${itemContainer.name})`,
+				user: username,
+				time: new Date(Date.now()),
+			};		
+		} else {
+			newAudit = {
+				message: `${username} removed ${oldQuantity-newQuantity} to '${category!.size} ${category!.brand} ${category!.style}'. (${oldQuantity} -> ${newQuantity}) (${itemContainer.name})`,
+				user: username,
+				time: new Date(Date.now()),
+			};		
+		}
+
 
 		const updatedAudits = [...audits, newAudit];
 		setContainers(updatedContainers);
@@ -318,6 +327,41 @@ const Inventory = () => {
             </button>
           </div>
         </div>
+				
+				<div className="bg-white border border-gray-200 rounded-xl shadow-md mb-6">
+					<button
+						onClick={() => setOpenTotal(!openTotal)}
+						className="w-full flex justify-between items-center text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
+							<span className="font-semibold text-lg text-gray-800">Total Inventory</span>
+							<img src="/down.png" className='h-4 w-4 rounded-full'/>
+						</button>
+					{openTotal && (
+						<div className="px-4 pb-4">
+							<div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
+								<span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+									<p className="text-gray-800 font-bold">Types:</p>
+									{Object.keys(totalInventory).length}
+								</span>
+								<span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+									<p className="font-bold text-gray-800">Total Qty:</p>
+									{Object.values(totalInventory).reduce((a, b) => a + b, 0)}
+								</span>
+							</div>
+							<div className="divide-y divide-gray-200 rounded-lg border border-gray-100">
+								{Object.entries(totalInventory).map(([categoryId, qty]) => {
+										const cat = getCategoryInfo(categoryId);
+										return { 
+											categoryId, qty, label: `${cat?.brand ?? ''} ${cat?.style ?? ''} ${cat?.size ?? ''}`.trim() };
+									}).sort((a, b) => a.label.localeCompare(b.label)).map(({ categoryId, qty, label }) => (
+										<div key={categoryId} className="flex items-center justify-between bg-white px-3 py-2">
+											<span className="text-sm text-gray-800">{label}</span>
+											<span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Qty: {qty}</span>
+										</div>
+									))}
+							</div>
+						</div>
+					)}
+				</div>
 
         {containers.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
@@ -348,7 +392,7 @@ const Inventory = () => {
                     return (
                       <div
                         key={item.id}
-                        className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
+                        className="flex justify-between items-center bg-gray-100 p-3 hover:bg-gray-200 transition-all duration-300 rounded-md">
                         <div className="text-sm flex-1">
                           <span className="font-medium text-gray-800">
 														{cat!.brand} - {cat!.style} - {cat!.size}
