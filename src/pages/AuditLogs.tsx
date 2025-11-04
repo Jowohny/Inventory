@@ -91,7 +91,7 @@ const AuditLogs = () => {
           }}
           placeholder="Enter Username"
           className="block w-full max-w-xs mx-auto px-4 py-2 text-center bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-6"/>
-				<div className="bg-slate-200 justify-around flex flex-col p-4 mb-2 rounded-lg">
+				<div className="bg-slate-200 justify-around flex flex-col p-4 mb-2 rounded-lg border border-gray-200 shadow-md transition-all hover:shadow-lg duration-200">
 					<h1 className="text-2xl font-semibold text-center tracking-wide block flex-1">
 						Filter By:
 					</h1>
@@ -113,7 +113,7 @@ const AuditLogs = () => {
 						</select>
 					</span>
 				</div>
-        <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6">
+        <div className="bg-white border border-gray-200 rounded-md shadow-md p-6 hover:shadow-lg duration-200">
           {auditLogs.length === 0 ? (
             <p className="text-gray-500 text-lg text-center p-6">
               No audit logs found...

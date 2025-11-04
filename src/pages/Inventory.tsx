@@ -13,11 +13,15 @@ const Inventory = () => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
+	const [filterBrand, setFilterBrand] = useState('');
+  const [filterStyle, setFilterStyle] = useState('');
+  const [filterSize, setFilterSize] = useState('');
 	const [quantity, setQuantity] = useState('1');
 	const [username, setUsername] = useState('')
 	const [unsure, setUnsure] = useState(false)
 	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
+	const [containerSearch, setContainerSearch] = useState<string>('')
 
   useEffect(() => {
     setContainers(storage.getContainers());
@@ -25,6 +29,26 @@ const Inventory = () => {
 		setUsername(storage.getLastUser())
     setAudits(storage.getAudits());
   }, []);
+
+	const filteredContainers = () => {
+		return containers.filter(c => {
+			const nameSearch = c.name.toLocaleLowerCase().includes(containerSearch.toLocaleLowerCase());
+			const brandFilter = c.items.some(item => {
+				const category = getCategoryInfo(item.categoryId);
+				return category?.brand.includes(filterBrand);
+			});
+			const styleFilter = c.items.some(item => {
+				const category = getCategoryInfo(item.categoryId);
+				return category?.style.includes(filterStyle);
+			});
+			const sizeFilter = c.items.some(item => {
+				const category = getCategoryInfo(item.categoryId);
+				return category?.size.includes(filterSize);
+			});
+			
+			return nameSearch && brandFilter && styleFilter && sizeFilter;
+		});
+	}
 
   const addContainer = () => {
 		if (username.length === 0) {
@@ -327,6 +351,62 @@ const Inventory = () => {
             </button>
           </div>
         </div>
+
+				<div className='bg-white border border-gray-200 rounded-xl shadow-md mb-6 px-4 py-3 flex flex-col justify-center'>
+					<h1 className='block text-center mb-2 text-3xl tracking-wide font-semibold'>Filter By:</h1>				
+					<div className='block w-full flex mb-3'>
+						<label className='text-lg font-medium mr-4'>Search Containers: </label>
+						<input
+							type="text"
+							value={containerSearch}
+							onChange={(e) => setContainerSearch(e.target.value)}
+							placeholder='Search among existing containers...'
+							className='px-2 py-1 rounded-lg border border-gray-200 flex-1 focus:ring-blue-500 focus:border-blue-500 shadow-sm'/>
+					</div>
+					<div className='ml-4 block flex space-x-2 flex-row'>
+						<select
+							value={filterBrand}
+							onChange={(e) => { setFilterBrand(e.target.value) }}
+							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+							<option value="">All Brands</option>
+							{getBrands().map((brand) => (
+								<option key={brand} value={brand}>
+									{brand}
+								</option>
+							))}
+						</select>
+						<select
+							value={filterStyle}
+							onChange={(e) => { setFilterStyle(e.target.value) }}
+							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+							<option value="">
+								{filterBrand ? `${filterBrand} styles` : 'Select brand'}
+							</option>
+							{getStylesForBrand(filterBrand).map((style) => (
+								<option key={style} value={style}>
+									{style}
+								</option>
+							))}
+						</select>
+						<select
+							value={filterSize}
+							onChange={(e) => { setFilterSize(e.target.value) }}
+							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
+							<option value="">
+								{filterBrand ? (
+									filterStyle ? `${filterBrand} & ${filterStyle} sizes` : `Select style`
+									) : (
+										'Select brand'
+									)}
+							</option>
+							{getSizesForBrandAndStyle(filterBrand, filterStyle).map((size) => (
+								<option key={size} value={size}>
+									{size}
+								</option>
+							))}
+						</select>												
+					</div>
+				</div>
 				
 				<div className="bg-white border border-gray-200 rounded-xl shadow-md mb-6">
 					<button
@@ -371,7 +451,7 @@ const Inventory = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {containers.map((container) => (
+            {filteredContainers().map((container) => (
               <div
                 key={container.id}
                 className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-all hover:shadow-xl hover:scale-101 duration-300">
