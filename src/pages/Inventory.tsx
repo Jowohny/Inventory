@@ -32,19 +32,26 @@ const Inventory = () => {
 
 	const filteredContainers = () => {
 		return containers.filter(c => {
-			const nameSearch = c.name.toLocaleLowerCase().includes(containerSearch.toLocaleLowerCase());
-			const brandFilter = c.items.some(item => {
-				const category = getCategoryInfo(item.categoryId);
-				return category?.brand.includes(filterBrand);
-			});
-			const styleFilter = c.items.some(item => {
-				const category = getCategoryInfo(item.categoryId);
-				return category?.style.includes(filterStyle);
-			});
-			const sizeFilter = c.items.some(item => {
-				const category = getCategoryInfo(item.categoryId);
-				return category?.size.includes(filterSize);
-			});
+			const nameSearch = !containerSearch || 
+				c.name.toLocaleLowerCase().includes(containerSearch.toLocaleLowerCase());
+			
+			const brandFilter = !filterBrand || 
+				c.items.some(item => {
+					const category = getCategoryInfo(item.categoryId);
+					return category?.brand === filterBrand;
+				});
+			
+			const styleFilter = !filterStyle || 
+				c.items.some(item => {
+					const category = getCategoryInfo(item.categoryId);
+					return category?.style === filterStyle;
+				});
+
+				const sizeFilter = !filterSize || 
+				c.items.some(item => {
+					const category = getCategoryInfo(item.categoryId);
+					return category?.size === filterSize;
+				});
 			
 			return nameSearch && brandFilter && styleFilter && sizeFilter;
 		});
