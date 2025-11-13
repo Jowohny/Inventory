@@ -1,7 +1,7 @@
 import { query, getDocs, collection, where } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 
-const useGetLogin = () => {
+export const useGetLogin = () => {
 	const enabledUsersRef = collection(db, "enabledUsers");
 
 	const getLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -35,5 +35,3 @@ const useGetLogin = () => {
 
 	return { getLogin }
 }
-
-export default useGetLogin;

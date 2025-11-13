@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useGetLogin from '../hooks/useGetLogin';
-import getCurrentUser from '../hooks/useGetCurrentUser';
+import { useGetLogin } from '../hooks/useGetLogin';
+import { getCurrentUser } from '../hooks/useGetCurrentUser';
 
 const Login = () => {
 	const [username, setUsername] = useState('');
