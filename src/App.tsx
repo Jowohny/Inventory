@@ -1,6 +1,7 @@
 import Inventory from "./pages/Inventory";
 import Categories from "./pages/Categories";
 import AuditLogs from "./pages/AuditLogs";
+import Login from "./pages/Login"
 import { Route, Routes } from "react-router-dom";
 
 
@@ -11,7 +12,8 @@ const App = () => {
 				<img className="w-1/5 rounded-full" src="/logo.jpg"/>
 			</div>
 			<Routes>
-				<Route path='/' element={<Inventory />}/>
+				<Route path='/' element={<Login />}/>
+				<Route path='/inventory' element={<Inventory />}/>
 				<Route path='/categories' element={<Categories />}/>
 				<Route path='/auditlogs' element={<AuditLogs />}/>
 			</Routes>

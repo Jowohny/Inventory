@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo} from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import type { Container, Item, Category, Audit } from '../storage';
 import { storage } from '../storage'
+import getCurrentUser from '../hooks/useGetCurrentUser';
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
@@ -17,16 +18,20 @@ const Inventory = () => {
   const [filterStyle, setFilterStyle] = useState('');
   const [filterSize, setFilterSize] = useState('');
 	const [quantity, setQuantity] = useState('1');
-	const [username, setUsername] = useState('')
-	const [unsure, setUnsure] = useState(false)
+	const [unsure, setUnsure] = useState(false);
 	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
-	const [containerSearch, setContainerSearch] = useState<string>('')
+	const [containerSearch, setContainerSearch] = useState<string>('');
+	const { username, isAuth } = getCurrentUser();
+	const upperUsername = username ? username.toUpperCase() : "";
+	const navigate = useNavigate();
 
   useEffect(() => {
+		if (!isAuth) {
+			navigate('/')
+		}
     setContainers(storage.getContainers());
     setCategories(storage.getCategories());
-		setUsername(storage.getLastUser())
     setAudits(storage.getAudits());
   }, []);
 
@@ -55,6 +60,11 @@ const Inventory = () => {
 			
 			return nameSearch && brandFilter && styleFilter && sizeFilter;
 		});
+	}
+
+	const onLogout = () => {
+		localStorage.removeItem('userInfo')
+		navigate('/')
 	}
 
   const addContainer = () => {
@@ -330,15 +340,12 @@ const Inventory = () => {
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Inventory Tracker
         </h1>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            storage.saveLastUser(e.target.value);
-          }}
-          placeholder="Enter Username"
-          className="block w-full max-w-xs mx-auto px-4 py-2 text-center bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-6"/>
+				<h1 className="block mx-auto px-4 py-2 text-center text-2xl font-bold text-black mb-6 flex gap-4 justify-center content-center">
+					{ upperUsername }
+					<button onClick={onLogout} className='text-center flex border rounded-lg px-2 py-1 text-lg bg-gray-300'>
+						Logout
+					</button>
+				</h1>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6 mb-6">
           <h2 className="text-2xl font-semibold mb-4 text-gray-800">
