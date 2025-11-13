@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetLogin } from '../hooks/useGetLogin';
-import { getCurrentUser } from '../hooks/useGetCurrentUser';
+import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
 
 const Login = () => {
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
-	const { isAuth } = getCurrentUser()
+	const { isAuth } = useGetCurrentUser()
 	const navigate = useNavigate();
 
 	useEffect(() => {

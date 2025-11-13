@@ -2,7 +2,7 @@ import { addDoc, collection, deleteDoc, serverTimestamp, where, query, getDocs }
 import type { Item } from "../storage";
 import { db } from "../config/firebase-config";
 
-export const useAdjustContainerInfo = () => {
+export const useSetContainerInfo = () => {
 	const containerRef = collection(db, "containers")
 
 	const addDBContainer = async (id: string, name: string, items: Item[]) => {
