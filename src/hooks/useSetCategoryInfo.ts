@@ -18,8 +18,8 @@ export const useSetCategoryInfo = () => {
 
 		const querySnapshot = await getDocs(q);
 
-		if (querySnapshot) {
-			await deleteDoc(querySnapshot.docs[0].ref)
+		if (!querySnapshot.empty) {
+			await deleteDoc(querySnapshot.docs[0].ref);
 		}
 	}
 

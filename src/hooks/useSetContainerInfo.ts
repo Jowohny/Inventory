@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, serverTimestamp, where, query, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, where, query, getDocs } from "firebase/firestore";
 import type { Item } from "../storage";
 import { db } from "../config/firebase-config";
 
@@ -9,8 +9,7 @@ export const useSetContainerInfo = () => {
 		await addDoc(containerRef, {
 			id,
 			name, 
-			items,
-			created: serverTimestamp()
+			items
 		});
 	}
 
@@ -22,7 +21,7 @@ export const useSetContainerInfo = () => {
 
 		const querySnapshot = await getDocs(q);
 
-		if (querySnapshot) {
+		if (!querySnapshot.empty) {
 			await deleteDoc(querySnapshot.docs[0].ref)
 		}
 }
