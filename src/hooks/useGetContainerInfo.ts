@@ -1,4 +1,4 @@
-import { collection, endAt, onSnapshot, orderBy, query, startAt } from "firebase/firestore";
+import { collection, endAt, onSnapshot, orderBy, getDoc, query, startAt, where, doc } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 import type { Container, Category } from "../storage";
 
@@ -54,5 +54,22 @@ export const useGetContainerInfo = () => {
 		return unsubscribe;
 	};
 
-	return { getDBContainers };
+	const getDBContainerFromId = async (id: string) => {
+		const containerDoc = doc(db, 'containers', id)
+		const docSnapshot = await getDoc(containerDoc);
+
+		if (docSnapshot.exists()) {
+			return {
+				id: docSnapshot.id,
+				name: docSnapshot.data().name,
+				items: docSnapshot.data().items
+			};		
+		} else {
+			return null;
+		}
+
+
+	}
+
+	return { getDBContainers, getDBContainerFromId };
 };
