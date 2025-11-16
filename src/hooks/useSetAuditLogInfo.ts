@@ -15,7 +15,7 @@ export const useSetAuditLogInfo = () => {
 	const clearDBAudits = async () => {
 		const snapshot = await getDocs(auditLogRef);
 
-		snapshot.forEach((doc) => { deleteDoc(doc.ref) })
+		snapshot.forEach(async (doc) => { await deleteDoc(doc.ref) })
 	}
 
 	return { addDBAudit, clearDBAudits }

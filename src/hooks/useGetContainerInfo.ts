@@ -1,4 +1,4 @@
-import { collection, endAt, onSnapshot, orderBy, getDoc, query, startAt, where, doc } from "firebase/firestore";
+import { collection, endAt, onSnapshot, orderBy, getDoc, query, startAt, doc } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 import type { Container, Category } from "../storage";
 

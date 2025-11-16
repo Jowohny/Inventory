@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, where, query, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs } from "firebase/firestore";
 import type { Item } from "../storage";
 import { db } from "../config/firebase-config";
 
@@ -14,19 +14,21 @@ export const useSetContainerInfo = () => {
 	}
 
 	const deleteDBContainer = async (id: string) => {
-		const q = query(
-				containerRef,
-				where('id', '==', id)
-		);
+		const containerDoc = doc(db, 'containers', id);
+		const docSnapshot = await getDoc(containerDoc);
 
-		const querySnapshot = await getDocs(q);
-
-		if (!querySnapshot.empty) {
-			await deleteDoc(querySnapshot.docs[0].ref)
+		if (docSnapshot.exists()) {
+			await deleteDoc(docSnapshot.ref);
 		}
-}
+	}
+
+	const clearDBContainers = async () => {
+		const snapshot = await getDocs(containerRef)
+
+		snapshot.forEach(async (snap) => { await deleteDoc(snap.ref) })
+	}
 
 
-	return { addDBContainer, deleteDBContainer };
+	return { addDBContainer, deleteDBContainer, clearDBContainers };
 }
 

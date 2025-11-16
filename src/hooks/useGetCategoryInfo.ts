@@ -21,7 +21,7 @@ export const useGetCategoryInfo = () => {
 
 		if (docSnapshot.exists()) {
 			return {
-				id: docSnapshot.id,
+				id: docSnapshot.data().id,
 				brand: docSnapshot.data().brand,
 				style: docSnapshot.data().style,
 				size: docSnapshot.data().size
