@@ -1,26 +1,41 @@
 import { useState, useEffect, useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
-import { storage } from '../storage';
-import type { Category } from '../storage';
-import type { Audit } from '../storage';
+import { NavLink, useNavigate } from 'react-router-dom';
+import type { Category } from '../interface';
+import { useSetCategoryInfo } from '../hooks/useSetCategoryInfo'
+import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
+import { useGetCategoryInfo } from '../hooks/useGetCategoryInfo';
+import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
 
 const Categories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [brand, setBrand] = useState('');
   const [style, setStyle] = useState('');
   const [size, setSize] = useState('');
-	const [username, setUsername] = useState('');
 	const [unsure, setUnsure] = useState(false);
-  const [audits, setAudits] = useState<Audit[]>([]);
-
-  const [openBrand, setOpenBrand] = useState<string>('');
+	const [openBrand, setOpenBrand] = useState<string>('');
   const [openStyle, setOpenStyle] = useState<string>('');
+	const { username, isAuth } = useGetCurrentUser();
+	const { addDBCategory, deleteDBCategory, clearDBCategories } = useSetCategoryInfo();
+	const { getDBCategories, findDBCategoryDuplicate } = useGetCategoryInfo()
+	const { addDBAudit } = useSetAuditLogInfo();
+	const upperUsername = username ? username.toUpperCase() : "";
+	const navigate = useNavigate();
 
   useEffect(() => {
-    setCategories(storage.getCategories());
-    setUsername(storage.getLastUser());
-    setAudits(storage.getAudits());
+		if (!isAuth) {
+			navigate('/');
+		}
+	  const unsubscribe = getDBCategories((updateList) => {
+			setCategories(updateList);
+		});
+		
+		return () => unsubscribe();
   }, []);
+
+	const onLogout = () => {
+		localStorage.removeItem('userInfo');
+		navigate('/');
+	}
 
   const groupedCategories = useMemo(() => {
     const groups: {
@@ -44,85 +59,53 @@ const Categories = () => {
     return groups;
   }, [categories]);
 
-  const addCategory = () => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+  const addCategory = async () => {
     if (!brand.trim() || !style.trim() || !size.trim()) return;
 
-    const isDuplicate = categories.some(
-      c => c.brand.toLowerCase() === brand.trim().toLowerCase() &&
-           c.style.toLowerCase() === style.trim().toLowerCase() &&
-           c.size.toLowerCase() === size.trim().toLowerCase()
-    );
+		const isDuplicate = await findDBCategoryDuplicate(brand, style, size);
 
-    if (isDuplicate) {
+    if (isDuplicate.success) {
       alert('This category already exists!');
       return;
     }
 
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      brand: brand.trim(),
-      style: style.trim(),
-      size: size.trim(),
-    };
+		await addDBCategory(Date.now().toString(), brand.trim(), style.trim(), size.trim());
 
-    const updated = [...categories, newCategory];
-    setCategories(updated);
-    storage.saveCategories(updated);
-
-    const newAudit: Audit = {
-      message: `${username} added category: ${newCategory.size} ${newCategory.brand} ${newCategory.style}`,
-      user: username,
-      time: new Date(Date.now()),
-    };
-    const updatedAudits = [...audits, newAudit];
-    setAudits(updatedAudits);
-    storage.saveAudits(updatedAudits);
+		await addDBAudit(
+			`${username} added category: ${size} ${brand} ${style}`,
+			username,
+			new Date(Date.now())
+		);
   };
 
-  const deleteCategory = (id: string) => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+  const deleteCategory = async (id: string) => {
     const categoryToDelete = categories.find(c => c.id === id);
-    const updated = categories.filter(c => c.id !== id);
-    setCategories(updated);
-    storage.saveCategories(updated);
 
-    if (categoryToDelete) {
-      const newAudit: Audit = {
-        message: `${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
-        user: username,
-        time: new Date(Date.now()),
-      };
-      const updatedAudits = [...audits, newAudit];
-      setAudits(updatedAudits);
-      storage.saveAudits(updatedAudits);
-    }
+		await deleteDBCategory(id);
+
+    if (!categoryToDelete) return; 
+		
+		await addDBAudit(
+			 `${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
+			 username,
+			 new Date(Date.now())
+		);
   };
 
-  const clearCategories = () => {
+  const clearCategories = async () => {
     if (!unsure) {
       alert('Are you sure you want to clear all categories? \nIf, so press clear all categories again.');
       setUnsure(true);
       return;
     } else {
-      setCategories([]);
-      storage.saveCategories([]);
-      if (username.length > 0) {
-        const newAudit: Audit = {
-          message: `${username} cleared all categories.`,
-          user: username,
-          time: new Date(Date.now()),
-        };
-        const updatedAudits = [...audits, newAudit];
-        setAudits(updatedAudits);
-        storage.saveAudits(updatedAudits);
-      }
+			await clearDBCategories();
+
+			await addDBAudit(
+				`${username} cleared all categories.`,
+				username,				
+				new Date(Date.now())
+			);
+		
       setUnsure(false);
     }
   };
@@ -151,15 +134,12 @@ const Categories = () => {
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Manage Categories
         </h1>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            storage.saveLastUser(e.target.value);
-          }}
-          placeholder="Enter Username"
-          className="block w-full max-w-xs mx-auto px-4 py-2 text-center bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-6"/>
+				<h1 className="block mx-auto px-4 py-2 text-center text-2xl font-bold text-black mb-6 flex gap-4 justify-center content-center">
+					{ upperUsername }
+					<button onClick={onLogout} className='text-center flex border rounded-lg px-2 py-1 text-lg bg-gray-300'>
+						Logout
+					</button>
+				</h1>
 
         <div className="bg-white border border-gray-200 rounded-xl shadow-md p-6 mb-6">
           <h2 className="text-2xl font-semibold mb-4 text-gray-800">
