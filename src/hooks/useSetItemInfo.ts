@@ -1,5 +1,5 @@
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import type { Item } from "../storage";
+import type { Item } from "../interface";
 import { db } from "../config/firebase-config";
 
 export const useSetItemInfo = () => {
@@ -71,6 +71,8 @@ export const useSetItemInfo = () => {
 			});
 
 			return {
+					oldAmount: previousQuantity,
+					newAmount: quantity,
 					difference: quantity - previousQuantity,
 					updatedItem: updatedItems[index],
 					items: updatedItems,

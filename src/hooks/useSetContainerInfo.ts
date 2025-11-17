@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs } from "firebase/firestore";
-import type { Item } from "../storage";
+import type { Item } from "../interface";
 import { db } from "../config/firebase-config";
 
 export const useSetContainerInfo = () => {

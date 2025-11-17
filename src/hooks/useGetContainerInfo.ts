@@ -1,6 +1,6 @@
 import { collection, endAt, onSnapshot, orderBy, getDoc, query, startAt, doc } from "firebase/firestore";
 import { db } from "../config/firebase-config";
-import type { Container, Category } from "../storage";
+import type { Container, Category } from "../interface";
 
 export const useGetContainerInfo = () => {
 	const containerRef = collection(db, "containers");
@@ -47,7 +47,6 @@ export const useGetContainerInfo = () => {
 					});
 				});
 			}
-
 			onUpdate(list);
 		});
 
@@ -67,8 +66,6 @@ export const useGetContainerInfo = () => {
 		} else {
 			return null;
 		}
-
-
 	}
 
 	return { getDBContainers, getDBContainerFromId };
