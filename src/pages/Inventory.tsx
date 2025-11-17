@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo} from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { Container, Item, Category, Audit } from '../storage';
-import { storage } from '../storage'
-import getCurrentUser from '../hooks/useGetCurrentUser';
+import type { Container, Item, Category } from '../interface';
+import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
+import { useSetContainerInfo } from '../hooks/useSetContainerInfo';
+import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
+import { useGetCategoryInfo } from '../hooks/useGetCategoryInfo'
+import { useGetContainerInfo } from '../hooks/useGetContainerInfo'
+import { useSetItemInfo } from '../hooks/useSetItemInfo';
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-	const [audits, setAudits] = useState<Audit[]>([])
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
 	const [openTotal, setOpenTotal] = useState<boolean>(false)
@@ -22,7 +25,15 @@ const Inventory = () => {
 	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
 	const [containerSearch, setContainerSearch] = useState<string>('');
-	const { username, isAuth } = getCurrentUser();
+	const [inventoryDisplay, setInventoryDisplay] = useState<{ categoryId: string; qty: number; name: string }[]>([]);
+	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
+	const { username, isAuth } = useGetCurrentUser();
+	const { addDBAudit } = useSetAuditLogInfo();
+	const { addDBContainer, deleteDBContainer, clearDBContainers } = useSetContainerInfo();
+	const { getDBContainerFromId } = useGetContainerInfo()
+	const { getDBCategories, getDBCategoryFromId }  = useGetCategoryInfo();
+	const { getDBContainers } = useGetContainerInfo();
+	const { addItemToContainer, deleteItemFromContainer, adjustItemQuantityFromContainer } = useSetItemInfo();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
 
@@ -30,79 +41,55 @@ const Inventory = () => {
 		if (!isAuth) {
 			navigate('/')
 		}
-    setContainers(storage.getContainers());
-    setCategories(storage.getCategories());
-    setAudits(storage.getAudits());
+	  const loadCategories = async () => {
+			const list = await getDBCategories();
+			if (!list) return;
+
+			setCategories(list);
+		};
+		loadCategories();
   }, []);
 
-	const filteredContainers = () => {
-		return containers.filter(c => {
-			const nameSearch = !containerSearch || 
-				c.name.toLocaleLowerCase().includes(containerSearch.toLocaleLowerCase());
-			
-			const brandFilter = !filterBrand || 
-				c.items.some(item => {
-					const category = getCategoryInfo(item.categoryId);
-					return category?.brand === filterBrand;
-				});
-			
-			const styleFilter = !filterStyle || 
-				c.items.some(item => {
-					const category = getCategoryInfo(item.categoryId);
-					return category?.style === filterStyle;
-				});
+	useEffect(() => {
+		if (categories.length === 0) return;
+	
+		let unsubscribe: (() => void) | null = null;
+	
+		const load = () => {
+			unsubscribe = getDBContainers (
+				containerSearch,
+				filterBrand,
+				filterStyle,
+				filterSize,
+				categories,      
+				(updated) => setContainers(updated)
+			);
+		};
+	
+		load();
+	
+		return () => {
+			if (unsubscribe) unsubscribe();
+		};
+	}, [containerSearch, filterBrand, filterStyle, filterSize, categories]);
 
-				const sizeFilter = !filterSize || 
-				c.items.some(item => {
-					const category = getCategoryInfo(item.categoryId);
-					return category?.size === filterSize;
-				});
-			
-			return nameSearch && brandFilter && styleFilter && sizeFilter;
-		});
-	}
+	useEffect(() => {
+    const load = async () => {
+        const allItems = containers.flatMap(c => c.items);
+        
+        const result: Record<string, Category | null> = {};
+        for (const item of allItems) {
+            result[item.id] = await getDBCategoryFromId(item.categoryId);
+        }
 
-	const onLogout = () => {
-		localStorage.removeItem('userInfo')
-		navigate('/')
-	}
-
-  const addContainer = () => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
-    if (!newContainerName.trim()) return;
-
-    const isDuplicate = containers.some(
-      c => c.name.toLowerCase() === newContainerName.trim().toLowerCase()
-    );
-
-    if (isDuplicate) {
-      alert('A container with this name already exists!');
-      return;
-    }
-
-    const newContainer: Container = {
-      id: Date.now().toString(),
-      name: newContainerName.trim(),
-      items: [],
+        setItemCategories(result);
     };
 
-		const newAudit: Audit = {
-			message: `${username} added a container. (${newContainer.name})`,
-			user: username,
-			time: new Date(Date.now())
-		}
+    if (containers.length === 0) return;
+		
+		load();
+}, [containers]);
 
-    const updatedContainers = [...containers, newContainer];
-    const updatedAudits = [...audits, newAudit];
-    setContainers(updatedContainers);
-		setAudits(updatedAudits);
-    storage.saveContainers(updatedContainers);
-    storage.saveAudits(updatedAudits);
-    setNewContainerName('');
-  };
 
 	const totalInventory = useMemo(() => {
 		const groups: { [categoryId: string]: number } = {};
@@ -114,33 +101,73 @@ const Inventory = () => {
 		return groups;
 	}, [containers]);
 
-  const deleteContainer = (id: string) => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+	useEffect(() => {
+		const load = async () => {
+			const entries = Object.entries(totalInventory);
+
+			const results = await Promise.all(
+				entries.map(async ([categoryId, qty]) => {
+					const cat = await getDBCategoryFromId(categoryId);
+					if (!cat) return null;
+
+					return {
+						categoryId,
+						qty,
+						name: `${cat.brand} ${cat.style} ${cat.size}`.trim(),
+					};
+				})
+			);
+
+			setInventoryDisplay(
+				results
+					.filter((r): r is { categoryId: string; qty: number; name: string } => r !== null)
+					.sort((a, b) => a.name.localeCompare(b.name))
+			);
+		};
+
+		load();
+	}, [totalInventory]);
+
+	const onLogout = () => {
+		localStorage.removeItem('userInfo')
+		navigate('/')
+	}
+
+  const addContainer = async () => {
+    if (!newContainerName.trim()) return;
+
+    const isDuplicate = containers.some(
+      c => c.name.toLowerCase() === newContainerName.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert('A container with this name already exists!');
+      return;
+    }
+
+		await addDBContainer(Date.now().toString(), newContainerName.trim(), []);
+		await addDBAudit(
+			`${username} added a container. (${newContainerName.trim()})`,
+			username,
+			new Date(Date.now())
+		);
+
+		setNewContainerName('');
+  };
+
+  const deleteContainer = async (id: string) => {
+		await deleteDBContainer(id);
 
 		const containerDeleted = containers.find(c => c.id === id);
 
-		const newAudit: Audit = {
-			message: `${username} deleted a container. (${containerDeleted!.name})`,
-			user: username,
-			time: new Date(Date.now())
-		}
-
-		const updateAudits = [...audits, newAudit]
-		const containerToDelete = containers.filter(c => c.id !== id);
-    setContainers(containerToDelete);
-		setAudits(updateAudits)
-    storage.saveContainers(containerToDelete);
-		storage.saveAudits(updateAudits)
+		await addDBAudit(
+			`${username} deleted a container. (${containerDeleted!.name.trim()})`,
+			username,
+			new Date(Date.now())
+		);
   };
 
-	const addItem = (containerId: string) => {
-    if (username.length === 0) {
-      alert("Please enter a username before you make any changes...");
-      return;
-    }
+	const addItem = async (containerId: string) => {
     if (!selectedBrand || !selectedStyle || !selectedSize || !quantity) return;
 
     const category = categories.find(
@@ -150,27 +177,18 @@ const Inventory = () => {
         c.size === selectedSize
     );
 
-    if (!category) {
-      alert("Could not find a matching category.");
-      return;
-    }
-
     const itemContainer = containers.find((c) => c.id === containerId);
-    if (!itemContainer) {
-			return;
-		} 
+    if (!itemContainer || !category) return;
+
 
     const existingItem = itemContainer.items.find(
       (i) => i.categoryId === category.id
     );
 
-    let updatedContainers: Container[];
     const incrementBy = parseInt(quantity);
 
     if (existingItem) {
-      updatedContainers = containers.map((c) =>
-        c.id === containerId ? { ...c, items: c.items.map((i) => i.id === existingItem.id ? { ...i, quantity: i.quantity + incrementBy } : i )} : c
-		);
+      await adjustItemQuantityFromContainer(containerId, existingItem.id, incrementBy)
     } else {
       const newItem: Item = {
         id: Date.now().toString(),
@@ -178,23 +196,15 @@ const Inventory = () => {
         quantity: incrementBy,
       };
 
-      updatedContainers = containers.map((c) =>
-        c.id === containerId ? { ...c,items: [...c.items, newItem] } : c 
-			);
+			await addItemToContainer(containerId, newItem)
     }
 
-    const newAudit: Audit = {
-      message: `${username} added ${incrementBy} of '${category.size} ${category.brand} ${category.style}'. (${itemContainer.name})`,
-      user: username,
-      time: new Date(Date.now()),
-    };
-
-    const updateAudits = [...audits, newAudit];
-    setContainers(updatedContainers);
-    setAudits(updateAudits);
-    storage.saveContainers(updatedContainers);
-    storage.saveAudits(updateAudits);
-
+		await addDBAudit(
+			`${username} added ${incrementBy} of '${category.size} ${category.brand} ${category.style}'. (${itemContainer.name})`,
+			username,
+			new Date(Date.now())
+		);
+		
     setAddingItemTo(null);
     setSelectedBrand('');
     setSelectedStyle('');
@@ -202,76 +212,54 @@ const Inventory = () => {
     setQuantity('1');
   };
 
-  const deleteItem = (containerId: string, itemId: string) => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+  const deleteItem = async (containerId: string, itemId: string) => {
+		const itemContainer = await getDBContainerFromId(containerId)
+		if (!itemContainer) return;
 
-		const itemContainer = containers.find(c => c.id === containerId)
-		const itemDeleted = itemContainer?.items.find(c => c.id == itemId)
-		const itemToDelete = containers.map(c =>
-      c.id === containerId ? { ...c, items: c.items.filter(i => i.id !== itemId) } : c
-    );
+		const itemDeleted: Item = itemContainer.items.find((c: Item) => c.id == itemId)
+		if (!itemDeleted) return;
 
-		const category = getCategoryInfo(itemDeleted!.categoryId);
-		const newAudit: Audit = {
-			message: `${username} deleted ${category!.size} ${category!.brand} ${category!.style} from a container. (${itemContainer!.name})`,
-			user: username,
-			time: new Date(Date.now())
-		};
+		const category = await getDBCategoryFromId(itemDeleted.categoryId);
+		if (!category) return;
 
-		const updatedAudits = [...audits, newAudit];
-		setContainers(itemToDelete);
-		setAudits(updatedAudits);
-		storage.saveContainers(itemToDelete);
-		storage.saveAudits(updatedAudits);
+		await deleteItemFromContainer(containerId, itemId)
+
+		await addDBAudit(
+			`${username} deleted ${category.size} ${category.brand} ${category.style} from a container. (${itemContainer!.name})`,
+			username,
+			new Date(Date.now())
+		)
 	};
 
-	const updateItemQuantity = (containerId: string, itemId: string, newQuantity: number) => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+	const updateItemQuantity = async (containerId: string, itemId: string, newQuantity: number) => {
+		const itemContainer = await getDBContainerFromId(containerId)
+		if (!itemContainer) return;
 
-		const itemContainer = containers.find(c => c.id === containerId);
-		const item = itemContainer?.items.find(i => i.id === itemId);
-		let newAudit: Audit;
-		if (!item || !itemContainer) return;
+		const item = itemContainer.items.find((i: Item) => i.id === itemId);
+		if (!item) return;
 
-		const oldQuantity = item.quantity;
-		if (newQuantity === oldQuantity) {
+		const results = await adjustItemQuantityFromContainer(itemContainer.id, item.id, newQuantity)
+
+		const category = await getDBCategoryFromId(item.categoryId)
+
+		if (!category || !results) return
+
+		if (results.newAmount === results.oldAmount) {
 			setEditingQuantity(null);
 			return;
-		}
-
-		const category = getCategoryInfo(item.categoryId);
-		const updatedContainers = containers.map(c =>
-			c.id === containerId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity }: i )}: c
-		);
-
-		if (newQuantity === oldQuantity) {
-			return;
-		} else if (newQuantity > oldQuantity) {
-			newAudit = {
-				message: `${username} added ${newQuantity-oldQuantity} to '${category!.size} ${category!.brand} ${category!.style}'. (${oldQuantity} -> ${newQuantity}) (${itemContainer.name})`,
-				user: username,
-				time: new Date(Date.now()),
-			};		
+		} else if (results!.difference < 0) {
+			await addDBAudit(
+				`${username} added ${-results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
+				username,
+				new Date(Date.now())
+			);
 		} else {
-			newAudit = {
-				message: `${username} removed ${oldQuantity-newQuantity} to '${category!.size} ${category!.brand} ${category!.style}'. (${oldQuantity} -> ${newQuantity}) (${itemContainer.name})`,
-				user: username,
-				time: new Date(Date.now()),
-			};		
+			await addDBAudit(
+				`${username} removed ${results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
+				username,
+				new Date(Date.now())
+			);
 		}
-
-
-		const updatedAudits = [...audits, newAudit];
-		setContainers(updatedContainers);
-		setAudits(updatedAudits);
-		storage.saveContainers(updatedContainers);
-		storage.saveAudits(updatedAudits);
 		setEditingQuantity(null);
 	};
 
@@ -292,32 +280,23 @@ const Inventory = () => {
 		setEditingQuantityValue('');
 	};
 
-	const clearContainers = () => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+	const clearContainers = async () => {
 		if (!unsure) {
 			alert('Are you sure you want to clear all containers? \nIf so, press Clear All Containers again.');
 			setUnsure(true);
 			return;
 		}
-		setContainers([]);
-		storage.saveContainers([]);
-		const newAudit: Audit = {
-			message: `${username} cleared all containers.`,
-			user: username,
-			time: new Date(Date.now()),
-		};
-		const updatedAudits = [...audits, newAudit];
-		setAudits(updatedAudits);
-		storage.saveAudits(updatedAudits);
+
+		await clearDBContainers();
+
+		await addDBAudit(
+			`${username} cleared all containers.`,
+			username,
+			new Date(Date.now())
+		);
+
 		setUnsure(false);
 	};
-
-  const getCategoryInfo = (categoryId: string) => {
-    return categories.find(c => c.id === categoryId);
-  };
 
   const getBrands = () => {
     const brands = categories.map(c => c.brand);
@@ -442,16 +421,14 @@ const Inventory = () => {
 								</span>
 							</div>
 							<div className="divide-y divide-gray-200 rounded-lg border border-gray-100">
-								{Object.entries(totalInventory).map(([categoryId, qty]) => {
-										const cat = getCategoryInfo(categoryId);
-										return { 
-											categoryId, qty, label: `${cat?.brand ?? ''} ${cat?.style ?? ''} ${cat?.size ?? ''}`.trim() };
-									}).sort((a, b) => a.label.localeCompare(b.label)).map(({ categoryId, qty, label }) => (
-										<div key={categoryId} className="flex items-center justify-between bg-white px-3 py-2">
-											<span className="text-sm text-gray-800">{label}</span>
-											<span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Qty: {qty}</span>
-										</div>
-									))}
+								{inventoryDisplay.map(({ categoryId, qty, name }) => (
+									<div key={categoryId} className="flex items-center justify-between bg-white px-3 py-2">
+										<span className="text-sm text-gray-800">{name}</span>
+										<span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+											Qty: {qty}
+										</span>
+									</div>
+								))}
 							</div>
 						</div>
 					)}
@@ -465,7 +442,7 @@ const Inventory = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {filteredContainers().map((container) => (
+            {containers.map((container) => (
               <div
                 key={container.id}
                 className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-all hover:shadow-xl hover:scale-101 duration-300">
@@ -481,15 +458,15 @@ const Inventory = () => {
                 </div>
 
                 <div className="space-y-2 mb-4">
-                  {container.items.map((item) => {
-                    const cat = getCategoryInfo(item.categoryId);
+                  {container.items.map( (item) => {
+                    const cat = itemCategories[item.id];
                     return (
                       <div
                         key={item.id}
                         className="flex justify-between items-center bg-gray-100 p-3 hover:bg-gray-200 transition-all duration-300 rounded-md">
                         <div className="text-sm flex-1">
                           <span className="font-medium text-gray-800">
-														{cat!.brand} - {cat!.style} - {cat!.size}
+													{cat ? `${cat.brand} - ${cat.style} - ${cat.size}` : "Loading..."}
                           </span>
                           <span className="ml-3 text-gray-500">
 														Qty: {item.quantity}

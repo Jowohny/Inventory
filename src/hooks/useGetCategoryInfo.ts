@@ -7,12 +7,17 @@ export const useGetCategoryInfo = () => {
 	const getDBCategories = async () => {
 		const snapshot = await getDocs(categoryRef);
 
-		return snapshot.docs.map((docs) => ({
-			id: docs.id,
-			brand: docs.data().brand,
-			style: docs.data().style,
-			size: docs.data().size
-		}));
+		if (!snapshot.empty) {
+			return snapshot.docs.map((docs) => ({
+				id: docs.id,
+				brand: docs.data().brand,
+				style: docs.data().style,
+				size: docs.data().size
+			}));		
+		} else {
+			return null;
+		}
+
 	};
 
 	const getDBCategoryFromId = async (id: string) => {
@@ -26,8 +31,12 @@ export const useGetCategoryInfo = () => {
 				style: docSnapshot.data().style,
 				size: docSnapshot.data().size
 			}
+		} else {
+			return null;
 		}
 	}
+
+
 
 	return { getDBCategories, getDBCategoryFromId };
 };
