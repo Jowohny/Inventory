@@ -39,15 +39,14 @@ const Inventory = () => {
 
   useEffect(() => {
 		if (!isAuth) {
-			navigate('/')
+			navigate('/');
 		}
-	  const loadCategories = async () => {
-			const list = await getDBCategories();
-			if (!list) return;
+		
+	  const loadCategories = getDBCategories((updatedCategories) => {
+			setCategories(updatedCategories)
+		});
 
-			setCategories(list);
-		};
-		loadCategories();
+		return () => loadCategories();
   }, []);
 
 	useEffect(() => {

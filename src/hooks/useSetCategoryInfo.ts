@@ -1,4 +1,4 @@
-import { addDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore"
+import { addDoc, collection, doc, getDocs, deleteDoc } from "firebase/firestore"
 import { db } from "../config/firebase-config"
 
 export const useSetCategoryInfo = () => {
@@ -14,14 +14,15 @@ export const useSetCategoryInfo = () => {
 	}
 
 	const deleteDBCategory = async (id: string) => {
-		const q = query(categoryRef, where('id', '==', id))
-
-		const querySnapshot = await getDocs(q);
-
-		if (!querySnapshot.empty) {
-			await deleteDoc(querySnapshot.docs[0].ref);
-		}
+		const categoryDoc = doc(db, 'categories', id);
+		await deleteDoc(categoryDoc)
 	}
 
-	return { addDBCategory, deleteDBCategory };
+	const clearDBCategories = async () => {
+		const snapshot = await getDocs(categoryRef)
+
+		snapshot.forEach(async (snap) => { await deleteDoc(snap.ref) })
+	}
+
+	return { addDBCategory, deleteDBCategory, clearDBCategories };
 }

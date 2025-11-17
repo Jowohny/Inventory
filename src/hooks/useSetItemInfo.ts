@@ -42,7 +42,6 @@ export const useSetItemInfo = () => {
 					items: []
 				};
 			}			
-
 		} else {
 			return null;
 		}

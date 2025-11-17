@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import type { Item } from "../interface";
 import { db } from "../config/firebase-config";
 
@@ -15,11 +15,7 @@ export const useSetContainerInfo = () => {
 
 	const deleteDBContainer = async (id: string) => {
 		const containerDoc = doc(db, 'containers', id);
-		const docSnapshot = await getDoc(containerDoc);
-
-		if (docSnapshot.exists()) {
-			await deleteDoc(docSnapshot.ref);
-		}
+		await deleteDoc(containerDoc);
 	}
 
 	const clearDBContainers = async () => {
