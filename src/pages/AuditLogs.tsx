@@ -1,46 +1,63 @@
 import { useEffect, useState } from "react"
-import { storage } from "../storage"
-import type { Audit } from "../storage"
-import { NavLink } from "react-router-dom"
+import type { Audit } from "../interface"
+import { NavLink, useNavigate } from "react-router-dom"
+import { useSetAuditLogInfo } from "../hooks/useSetAuditLogInfo"
+import { useGetAuditLogInfo } from "../hooks/useGetAuditLogInfo"
+import { useGetCurrentUser } from "../hooks/useGetCurrentUser"
 
 const AuditLogs = () => {
 	const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
 	const [unsure, setUnsure] = useState<boolean>(false);
-	const [username, setUsername] = useState<string>('');
+	const [uniqueUsers, setUniqueUsers] = useState<string[]>()
 	const [currentPage, setCurrentPage] = useState<number>(0);
 	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([]);
 	const [maxPages, setMaxPages] = useState<number>(0);
 	const [userFilter, setUserFilter] = useState<string>('');
+	const { isAuth, username } = useGetCurrentUser()
+	const { clearDBAudits } = useSetAuditLogInfo();
+	const { getDBAuditLogs, getUniqueUsers } = useGetAuditLogInfo();
 	const paginCount: number = 8;
+	const upperUsername = username.toUpperCase();
+	const navigate = useNavigate();
 
-	useEffect(() => {
-		setUsername(storage.getLastUser());
-		setAuditLogs(storage.getAudits().reverse())
-	}, [])
-
-	useEffect(() => {
-		let filterUser: Audit[] = [];
-		if (userFilter !== '') {
-			filterUser = auditLogs.filter(c => c.user === userFilter);
-			if (Math.ceil(filterUser.length/paginCount) < maxPages) {
-				setCurrentPage(Math.ceil(filterUser.length/paginCount)-1)
-			}
-		} else {
-			filterUser = auditLogs;
+  useEffect(() => {
+		if (!isAuth) {
+			navigate('/');
 		}
+	  const unsubscribe = getDBAuditLogs(userFilter, (updateList) => {
+			setAuditLogs(updateList);
+		});
+		return () => unsubscribe();
+  }, [userFilter]);
+
+	useEffect(() => {
+		const unsubscribe = getUniqueUsers((users) => {
+			setUniqueUsers(users);
+		});
+	
+		return () => unsubscribe();
+	}, []);
+	
+
+	useEffect(() => {
 		const pageItems: Audit[] = [];
-		const totalPages = Math.ceil(filterUser.length/paginCount);
+		const totalPages = Math.ceil(auditLogs.length/paginCount);
 		setMaxPages(totalPages);
 
 		for (let i: number = currentPage * paginCount; i < (currentPage * paginCount) + paginCount; i++) {
-			if (filterUser[i]) {
-				pageItems.push(filterUser[i]);
+			if (auditLogs[i]) {
+				pageItems.push(auditLogs[i]);
 			} else {
 				break;
 			}
 		}
 		setCurrentPaginate(pageItems);
 	}, [auditLogs, currentPage, userFilter])
+
+	const onLogout = () => {
+		localStorage.removeItem('userInfo');
+		navigate('/');
+	}
 
 	const paginate = (direction: string) => {
 		if (direction === 'previous' && currentPage > 0) {
@@ -50,11 +67,7 @@ const AuditLogs = () => {
 		}
 	}
 
-	const clearAudits = () => {
-		if (username.length === 0) {
-			alert("Please enter a username before you make any changes...");
-			return;
-		}
+	const clearAudits = async () => {
 		if (!unsure) {
 			alert('Are you sure you want to clear all audits? \nIf so, then press Clear All Audits again');
 			setUnsure(true);
@@ -65,15 +78,10 @@ const AuditLogs = () => {
 				user: username,
 				time: new Date(Date.now())
 			};
+			await clearDBAudits();
 			setAuditLogs([newAudit]);
-			storage.saveAudits([newAudit]);
 			setUnsure(false);
 		}
-	}
-
-	const getUsers = () => {
-		const users = auditLogs.map(c => c.user)
-		return [...new Set(users)]
 	}
 
   return (
@@ -82,15 +90,13 @@ const AuditLogs = () => {
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Audit Logs
         </h1>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            storage.saveLastUser(e.target.value);
-          }}
-          placeholder="Enter Username"
-          className="block w-full max-w-xs mx-auto px-4 py-2 text-center bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-6"/>
+				<h1 className="block mx-auto px-4 py-2 text-center text-2xl font-bold text-black mb-6 flex gap-4 justify-center content-center">
+					{ upperUsername }
+					<button onClick={onLogout} className='text-center flex border rounded-lg px-2 py-1 text-lg bg-gray-300'>
+						Logout
+					</button>
+				</h1>
+
 				<div className="bg-slate-200 justify-around flex flex-col p-4 mb-2 rounded-lg border border-gray-200 shadow-md transition-all hover:shadow-lg duration-200">
 					<h1 className="text-2xl font-semibold text-center tracking-wide block flex-1">
 						Filter By:
@@ -105,7 +111,7 @@ const AuditLogs = () => {
 
 							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
 							<option value="">Choose user...</option>
-							{getUsers().map((user) => (
+							{uniqueUsers?.map((user) => (
 								<option key={user} value={user}>
 									{user}
 								</option>
@@ -121,7 +127,7 @@ const AuditLogs = () => {
           ) : (
             <>
               <div className="space-y-2">
-                {currentPaginate.map((audit, index) => (
+                {currentPaginate.map((audit: Audit, index) => (
                   <div key={index} className="bg-gray-100 p-3 rounded-md hover:bg-gray-300 hover:scale-102 duration-300">
                     <p className="font-medium text-gray-800 text-sm">
                       {audit.message}
