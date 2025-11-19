@@ -41,7 +41,7 @@ const Inventory = () => {
 		if (!isAuth) {
 			navigate('/');
 		}
-		
+
 	  const loadCategories = getDBCategories((updatedCategories) => {
 			setCategories(updatedCategories)
 		});
@@ -248,13 +248,13 @@ const Inventory = () => {
 			return;
 		} else if (results!.difference < 0) {
 			await addDBAudit(
-				`${username} added ${-results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
+				`${username} removed ${-results.difference} from '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
 				username,
 				new Date(Date.now())
 			);
 		} else {
 			await addDBAudit(
-				`${username} removed ${results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
+				`${username} added ${results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
 				username,
 				new Date(Date.now())
 			);

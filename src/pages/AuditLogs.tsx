@@ -8,28 +8,27 @@ import { useGetCurrentUser } from "../hooks/useGetCurrentUser"
 const AuditLogs = () => {
 	const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
 	const [unsure, setUnsure] = useState<boolean>(false);
-	const [uniqueUsers, setUniqueUsers] = useState<string[]>()
+	const [uniqueUsers, setUniqueUsers] = useState<string[]>([])
 	const [currentPage, setCurrentPage] = useState<number>(0);
 	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([]);
 	const [maxPages, setMaxPages] = useState<number>(0);
 	const [userFilter, setUserFilter] = useState<string>('');
 	const { isAuth, username } = useGetCurrentUser()
-	const { clearDBAudits } = useSetAuditLogInfo();
+	const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
 	const { getDBAuditLogs, getUniqueUsers } = useGetAuditLogInfo();
 	const paginCount: number = 8;
 	const upperUsername = username.toUpperCase();
 	const navigate = useNavigate();
 
-  useEffect(() => {
+	useEffect(() => {
 		if (!isAuth) {
 			navigate('/');
+			return;
 		}
-	  const unsubscribe = getDBAuditLogs(userFilter, (updateList) => {
-			setAuditLogs(updateList);
-		});
+	
+		const unsubscribe = getDBAuditLogs(userFilter, setAuditLogs);
 		return () => unsubscribe();
-  }, [userFilter]);
-
+	}, [userFilter, isAuth, navigate, getDBAuditLogs]);
 	useEffect(() => {
 		const unsubscribe = getUniqueUsers((users) => {
 			setUniqueUsers(users);
@@ -38,6 +37,9 @@ const AuditLogs = () => {
 		return () => unsubscribe();
 	}, []);
 	
+	useEffect(() => {
+		setCurrentPage(0);
+	}, [userFilter]);
 
 	useEffect(() => {
 		const pageItems: Audit[] = [];
@@ -73,13 +75,12 @@ const AuditLogs = () => {
 			setUnsure(true);
 			return;
 		} else {
-			const newAudit: Audit = {
-				message: username + " cleared all audits.",
-				user: username,
-				time: new Date(Date.now())
-			};
 			await clearDBAudits();
-			setAuditLogs([newAudit]);
+			await addDBAudit(
+				`${username} cleared all audits.`,
+				username,
+				new Date(Date.now())
+			)
 			setUnsure(false);
 		}
 	}
@@ -111,7 +112,7 @@ const AuditLogs = () => {
 
 							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
 							<option value="">Choose user...</option>
-							{uniqueUsers?.map((user) => (
+							{uniqueUsers.map((user) => (
 								<option key={user} value={user}>
 									{user}
 								</option>
