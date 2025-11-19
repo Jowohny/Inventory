@@ -1,4 +1,4 @@
-import { collection, onSnapshot, query, where } from "firebase/firestore"
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore"
 import { db } from "../config/firebase-config";
 import type { Audit } from "../interface";
 
@@ -11,10 +11,14 @@ export const useGetAuditLogInfo = () => {
 		if (nameFilter) {
 			q = query(
 				auditLogRef,
-				where('user', '==', nameFilter)
+				where('user', '==', nameFilter),
+				orderBy('time', 'desc')
 			);
 		} else {
-			q = query(auditLogRef);
+			q = query(
+				auditLogRef,
+				orderBy('time', 'desc')
+			);
 		}
 
 		const unsubscribe = onSnapshot(q, (snapshot) => {
