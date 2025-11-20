@@ -12,4 +12,9 @@ export default defineConfig({
     }),
 		tailwindcss()
   ],
+  define: {
+    'import.meta.env.FIREBASE_WEBAPP_CONFIG': JSON.stringify(process.env.FIREBASE_WEBAPP_CONFIG),
+
+    'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify(process.env.VITE_FIREBASE_API_KEY),
+  },
 })
