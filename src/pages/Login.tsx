@@ -1,119 +1,93 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGetLogin } from '../hooks/useGetLogin';
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../config/firebase-config";
 import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
+import { useGetLogin } from '../hooks/useGetLogin';
 
 const Login = () => {
-	const [username, setUsername] = useState('');
-	const [password, setPassword] = useState('');
-	const [error, setError] = useState('');
-	const [isLoading, setIsLoading] = useState(false);
-	const { isAuth } = useGetCurrentUser()
-	const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { isAuth } = useGetCurrentUser();
+	const { getLogin } = useGetLogin();
+  const navigate = useNavigate();
 
-	useEffect(() => {
-		if (isAuth) {
-			navigate('/inventory');
-		}
-	}, [isAuth, navigate]);
+  useEffect(() => {
+    if (isAuth) {
+      navigate('/inventory');
+    }
+  }, [isAuth, navigate]);
 
-	const handleLogin = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setError('');
-		
-		if (!username.trim()) {
-			setError('Please enter a username');
-			return;
-		}
+  const handleGoogleLogin = async () => {
+    setError('');
+    setIsLoading(true);
 
-		if (!password.trim()) {
-			setError('Please enter a password');
-			return;
-		}
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
 
-		setIsLoading(true);
+			if (!result) return;
 
-		const { getLogin } = useGetLogin();
-		const result = await getLogin(username, password);
-		
-		if (result.success) {
-			navigate('/inventory');
-			const userInfo = {
-				username,
-				isAuth: true,
+			const emailInquire = await getLogin(result.user.email!);
+
+			if (emailInquire.success) {
+				const user = result.user;
+
+				const userInfo = {
+					username: user.displayName ?? "",
+					isAuth: true,
+				};
+	
+				localStorage.setItem("currentUser", JSON.stringify(userInfo));
+				navigate("/inventory");
 			}
-			localStorage.setItem("currentUser", JSON.stringify(userInfo))
-		} else {
-			setError(result.error ? result.error : 'Unexpected Error')
-		}
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Google Sign-In failed.");
+    }
 
-		setIsLoading(false)
-	};
+    setIsLoading(false);
+  };
 
-	return (
-		<div className="flex items-center justify-center p-6 mt-8">
-			<div className="max-w-md w-full">
-				<div className="bg-white border border-gray-200 rounded-xl shadow-md p-8">
-					<div className="text-center mb-8">
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">
-							Login
-						</h1>
-					</div>
+  return (
+    <div className="flex items-center justify-center p-6 mt-8">
+      <div className="max-w-md w-full">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-md p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Login
+            </h1>
+          </div>
 
-					<form onSubmit={handleLogin} className="space-y-6">
-						<div>
-							<label 
-								htmlFor="username" 
-								className="block text-sm font-medium text-gray-700 mb-2">
-								Username
-							</label>
-							<input
-								id="username"
-								type="text"
-								value={username}
-								onChange={(e) => {
-									setUsername(e.target.value);
-									setError('');
-								}}
-								placeholder="Enter your username"
-								className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"/>
-						</div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+              {error}
+            </div>
+          )}
 
-						<div>
-							<label 
-								htmlFor="password" 
-								className="block text-sm font-medium text-gray-700 mb-2">
-								Password
-							</label>
-							<input
-								id="password"
-								type="password"
-								value={password}
-								onChange={(e) => {
-									setPassword(e.target.value);
-									setError('');
-								}}
-								placeholder="Enter your password"
-								className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"/>
-						</div>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+            className="w-full px-6 py-3 rounded-lg font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              "Signing in..."
+            ) : (
+              <>
+                <img
+                  src="/google-logo.png"
+                  alt="Google logo"
+                  className="h-8"
+                />
+                Sign in with Google
+              </>
+            )}
+          </button>
 
-						{error && (
-							<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-								{error}
-							</div>
-						)}
-
-						<button
-							type="submit"
-							disabled={isLoading}
-							className="w-full px-6 py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
-							{isLoading ? 'Logging In...' : 'Log In'}
-						</button>
-					</form>
-				</div>
-			</div>
-		</div>
-	);
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Login;
