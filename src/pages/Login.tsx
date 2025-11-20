@@ -22,29 +22,24 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+		const provider = new GoogleAuthProvider();
+		const result = await signInWithPopup(auth, provider);
 
-			if (!result) return;
+		if (!result) return;
 
-			const emailInquire = await getLogin(result.user.email!);
+		const emailInquire = await getLogin(result.user.email!);
 
-			if (emailInquire.success) {
-				const user = result.user;
+		if (emailInquire.success) {
+			const user = result.user;
 
-				const userInfo = {
-					username: user.displayName ?? "",
-					isAuth: true,
-				};
-	
-				localStorage.setItem("currentUser", JSON.stringify(userInfo));
-				navigate("/inventory");
-			}
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Google Sign-In failed.");
-    }
+			const userInfo = {
+				username: user.displayName ?? "",
+				isAuth: true,
+			};
+
+			localStorage.setItem("currentUser", JSON.stringify(userInfo));
+			navigate("/inventory");
+		}
 
     setIsLoading(false);
   };
