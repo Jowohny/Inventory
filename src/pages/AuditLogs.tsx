@@ -57,7 +57,7 @@ const AuditLogs = () => {
 	}, [auditLogs, currentPage, userFilter])
 
 	const onLogout = () => {
-		localStorage.removeItem('userInfo');
+		localStorage.removeItem('currentUser');
 		navigate('/');
 	}
 

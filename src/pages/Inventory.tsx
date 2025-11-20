@@ -128,7 +128,7 @@ const Inventory = () => {
 	}, [totalInventory]);
 
 	const onLogout = () => {
-		localStorage.removeItem('userInfo')
+		localStorage.removeItem('currentUser')
 		navigate('/')
 	}
 

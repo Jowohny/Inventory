@@ -1,5 +1,5 @@
 export const useGetCurrentUser = () => {
-	const data = localStorage.getItem('userInfo');
+	const data = localStorage.getItem('currentUser');
 	if (!data) {
 		return { username: null, isAuth: false };
 	}

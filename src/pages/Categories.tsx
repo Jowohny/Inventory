@@ -33,7 +33,7 @@ const Categories = () => {
   }, []);
 
 	const onLogout = () => {
-		localStorage.removeItem('userInfo');
+		localStorage.removeItem('currentUser');
 		navigate('/');
 	}
 
