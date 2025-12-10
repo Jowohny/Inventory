@@ -50,8 +50,6 @@ const Inventory = () => {
   }, []);
 
 	useEffect(() => {
-		if (categories.length === 0) return;
-	
 		let unsubscribe: (() => void) | null = null;
 	
 		const load = () => {
