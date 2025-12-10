@@ -44,7 +44,11 @@ const Categories = () => {
       };
     } = {};
 
-    categories.forEach((category) => {
+		const sortedCategories = [...categories].sort((a, b) => 
+      b.id.localeCompare(a.id, undefined, { numeric: true })
+    );
+
+    sortedCategories.forEach((category) => {
       if (!groups[category.brand]) {
         groups[category.brand] = {};
       }
