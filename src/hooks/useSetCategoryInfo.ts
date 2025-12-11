@@ -13,8 +13,8 @@ export const useSetCategoryInfo = () => {
 		})
 	}
 
-	const deleteDBCategory = async (customId: string) => {
-    const q = query(categoryRef, where('id', '==', customId));
+	const deleteDBCategory = async (id: string) => {
+    const q = query(categoryRef, where('id', '==', id));
     const querySnapshot = await getDocs(q);
 
     const docToDelete = querySnapshot.docs[0];

@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 import type { Category } from "../interface";
 
@@ -23,10 +23,12 @@ export const useGetCategoryInfo = () => {
 	};
 
 	const getDBCategoryFromId = async (id: string) => {
-		const categoryDoc = doc(db, 'categories', id);
-		const docSnapshot = await getDoc(categoryDoc);
+    const q = query(categoryRef, where('id', '==', id));
+    const querySnapshot = await getDocs(q);
 
-		if (docSnapshot.exists()) {
+		if (!querySnapshot.empty) {
+			const docSnapshot = querySnapshot.docs[0]
+
 			return {
 				id: docSnapshot.data().id,
 				brand: docSnapshot.data().brand,
