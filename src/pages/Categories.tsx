@@ -271,7 +271,7 @@ const Categories = () => {
 					<button
             onClick={clearCategories}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
-            Clear All Containers
+            Clear All Categories
           </button>
 				</div>
       </div>
