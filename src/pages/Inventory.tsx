@@ -624,12 +624,7 @@ const Inventory = () => {
           </div>
         )}
 
-        <div className="mt-12 flex flex-col items-center gap-4">
-          <button
-            onClick={clearContainers}
-            className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
-            Clear All Containers
-          </button>
+        <div className="mt-12 flex flex-col items-center gap-4 mb-60">
           <NavLink to="/categories" className="w-full">
             <span className="block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
               Add Categories
@@ -641,6 +636,14 @@ const Inventory = () => {
             </span>
           </NavLink>
         </div>
+				<div className='block'>
+					<h1 className='text-3xl text-red-500 font-black text-center mb-60'>Danger Zone</h1>
+					<button
+            onClick={clearContainers}
+            className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
+            Clear All Containers
+          </button>
+				</div>
       </div>
     </div>
 	);

@@ -28,7 +28,8 @@ const AuditLogs = () => {
 	
 		const unsubscribe = getDBAuditLogs(userFilter, setAuditLogs);
 		return () => unsubscribe();
-	}, [userFilter, isAuth, navigate, getDBAuditLogs]);
+
+	}, [userFilter, isAuth]);
 	useEffect(() => {
 		const unsubscribe = getUniqueUsers((users) => {
 			setUniqueUsers(users);
@@ -163,12 +164,7 @@ const AuditLogs = () => {
           )}
         </div>
 
-        <div className="mt-12 flex flex-col items-center gap-4">
-          <button
-            onClick={clearAudits}
-            className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
-            Clear All Audits
-          </button>
+        <div className="mt-12 flex flex-col items-center gap-4 mb-60">
           <NavLink to="/" className="w-full">
             <span className="block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
               View Inventory
@@ -180,6 +176,14 @@ const AuditLogs = () => {
             </span>
           </NavLink>
         </div>
+				<div className='block'>
+					<h1 className='text-3xl text-red-500 font-black text-center mb-60'>Danger Zone</h1>
+					<button
+            onClick={clearAudits}
+            className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
+            Clear All Containers
+          </button>
+				</div>
       </div>
     </div>
   );
