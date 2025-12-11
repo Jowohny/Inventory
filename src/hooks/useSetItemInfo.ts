@@ -21,31 +21,26 @@ export const useSetItemInfo = () => {
 	}
 
 	const deleteItemFromContainer = async (containerID: string, itemID: string) => {
-		const containerDoc = doc(db, 'containers', containerID);
-		const docSnapshot = await getDoc(containerDoc);
+    const containerDoc = doc(db, 'containers', containerID);
+    const docSnapshot = await getDoc(containerDoc);
 
-		if (docSnapshot.exists()) {
-			const itemList = (docSnapshot.data().items || []).map((item: Item) => item.id !== itemID);
+    if (docSnapshot.exists()) {
+      const currentItems = docSnapshot.data().items || [];
+      
+      const itemList = currentItems.filter((item: Item) => item.id !== itemID);
 
-			if (itemList.length === 0) {
-				await updateDoc(containerDoc, {items: itemList});
-				return {
-					id: containerID,
-					name: docSnapshot.data().name,
-					items: itemList
-				};
-			} else {
-				await updateDoc(containerDoc, { items: [] });
-				return {
-					id: containerID,
-					name: docSnapshot.data().name,
-					items: []
-				};
-			}			
-		} else {
-			return null;
-		}
-	}
+      await updateDoc(containerDoc, { items: itemList });
+			
+      return {
+        id: containerID,
+        name: docSnapshot.data().name,
+        items: itemList
+      };
+      
+    } else {
+      return null;
+    }
+  }
 
 	const adjustItemQuantityFromContainer = async (containerID: string, itemID: string, quantity: number) => {
     const containerDoc = doc(db, "containers", containerID);
