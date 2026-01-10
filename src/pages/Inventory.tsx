@@ -458,8 +458,18 @@ const Inventory = () => {
                   </button>
                 </div>
 
-                <div className="space-y-2 mb-4">
-                  {container.items.map( (item) => {
+								<div className="space-y-2 mb-4">
+									{container.items.filter((item) => {
+										const cat = itemCategories[item.id];
+
+										if (!cat) return false; 
+
+										if (filterBrand && cat.brand !== filterBrand) return false;
+										if (filterStyle && cat.style !== filterStyle) return false;
+										if (filterSize && cat.size !== filterSize) return false;
+
+										return true;
+									}).map( (item) => {
                     const cat = itemCategories[item.id];
                     return (
                       <div
