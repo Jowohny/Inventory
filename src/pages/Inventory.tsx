@@ -32,7 +32,7 @@ const Inventory = () => {
 	const { addDBAudit } = useSetAuditLogInfo();
 	const { addDBContainer, deleteDBContainer, clearDBContainers } = useSetContainerInfo();
 	const { getDBContainerFromId } = useGetContainerInfo()
-	const { getDBCategories, getDBCategoryFromId }  = useGetCategoryInfo();
+	const { getDBCategories }  = useGetCategoryInfo();
 	const { getDBContainers } = useGetContainerInfo();
 	const { addItemToContainer, deleteItemFromContainer, adjustItemQuantityFromContainer } = useSetItemInfo();
 	const { cleanupOrphanedItems } = useCleanupOrphanedItems();
@@ -72,22 +72,24 @@ const Inventory = () => {
 		};
 	}, [containerSearch, filterBrand, filterStyle, filterSize, categories]);
 
+	const categoryMap = useMemo(() => {
+		const map: Record<string, Category> = {};
+		categories.forEach(cat => {
+			map[cat.id] = cat;
+		});
+		return map;
+	}, [categories]);
+
 	useEffect(() => {
-    const load = async () => {
-        const allItems = containers.flatMap(c => c.items);
-        
-        const result: Record<string, Category | null> = {};
-        for (const item of allItems) {
-            result[item.id] = await getDBCategoryFromId(item.categoryId);
-        }
-
-        setItemCategories(result);
-    };
-
-    if (containers.length === 0) return;
+		const allItems = containers.flatMap(c => c.items);
 		
-		load();
-}, [containers]);
+		const result: Record<string, Category | null> = {};
+		for (const item of allItems) {
+			result[item.id] = categoryMap[item.categoryId] || null;
+		}
+
+		setItemCategories(result);
+	}, [containers, categoryMap]);
 
 	useEffect(() => {
 		cleanupOrphanedItems(categories);
@@ -104,31 +106,25 @@ const Inventory = () => {
 	}, [containers]);
 
 	useEffect(() => {
-		const load = async () => {
-			const entries = Object.entries(totalInventory);
+		const entries = Object.entries(totalInventory);
 
-			const results = await Promise.all(
-				entries.map(async ([categoryId, qty]) => {
-					const cat = await getDBCategoryFromId(categoryId);
-					if (!cat) return null;
+		const results = entries.map(([categoryId, qty]) => {
+			const cat = categoryMap[categoryId];
+			if (!cat) return null;
 
-					return {
-						categoryId,
-						qty,
-						name: `${cat.brand} ${cat.style} ${cat.size}`.trim(),
-					};
-				})
-			);
+			return {
+				categoryId,
+				qty,
+				name: `${cat.brand} ${cat.style} ${cat.size}`.trim(),
+			};
+		});
 
-			setInventoryDisplay(
-				results
-					.filter((r): r is { categoryId: string; qty: number; name: string } => r !== null)
-					.sort((a, b) => a.name.localeCompare(b.name))
-			);
-		};
-
-		load();
-	}, [totalInventory]);
+		setInventoryDisplay(
+			results
+				.filter((r): r is { categoryId: string; qty: number; name: string } => r !== null)
+				.sort((a, b) => a.name.localeCompare(b.name))
+		);
+	}, [totalInventory, categoryMap]);
 
 	const onLogout = () => {
 		localStorage.removeItem('currentUser')
@@ -221,8 +217,7 @@ const Inventory = () => {
 		const itemDeleted: Item = itemContainer.items.find((c: Item) => c.id == itemId)
 		if (!itemDeleted) return;
 
-		const category = await getDBCategoryFromId(itemDeleted.categoryId);
-		if (!category) return;
+		const category = categoryMap[itemDeleted.categoryId];
 
 		await deleteItemFromContainer(containerId, itemId)
 
@@ -242,9 +237,13 @@ const Inventory = () => {
 
 		const results = await adjustItemQuantityFromContainer(itemContainer.id, item.id, newQuantity)
 
-		const category = await getDBCategoryFromId(item.categoryId)
+		if (!results) return;
 
-		if (!category || !results) return
+		const category = categoryMap[item.categoryId];
+		if (!category) {
+			setEditingQuantity(null);
+			return;
+		}
 
 		if (results.newAmount === results.oldAmount) {
 			setEditingQuantity(null);
