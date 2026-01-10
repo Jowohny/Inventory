@@ -7,6 +7,7 @@ import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
 import { useGetCategoryInfo } from '../hooks/useGetCategoryInfo'
 import { useGetContainerInfo } from '../hooks/useGetContainerInfo'
 import { useSetItemInfo } from '../hooks/useSetItemInfo';
+import { useCleanupOrphanedItems } from '../hooks/useCleanupOrphanedItems';
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
@@ -34,6 +35,7 @@ const Inventory = () => {
 	const { getDBCategories, getDBCategoryFromId }  = useGetCategoryInfo();
 	const { getDBContainers } = useGetContainerInfo();
 	const { addItemToContainer, deleteItemFromContainer, adjustItemQuantityFromContainer } = useSetItemInfo();
+	const { cleanupOrphanedItems } = useCleanupOrphanedItems();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
 
@@ -87,6 +89,9 @@ const Inventory = () => {
 		load();
 }, [containers]);
 
+	useEffect(() => {
+		cleanupOrphanedItems(categories);
+	}, [categories, cleanupOrphanedItems]);
 
 	const totalInventory = useMemo(() => {
 		const groups: { [categoryId: string]: number } = {};
