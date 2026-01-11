@@ -30,6 +30,7 @@ const AuditLogs = () => {
 		return () => unsubscribe();
 
 	}, [userFilter, isAuth]);
+
 	useEffect(() => {
 		const unsubscribe = getUniqueUsers((users) => {
 			setUniqueUsers(users);
@@ -43,17 +44,10 @@ const AuditLogs = () => {
 	}, [userFilter]);
 
 	useEffect(() => {
-		const pageItems: Audit[] = [];
 		const totalPages = Math.ceil(auditLogs.length/paginCount);
 		setMaxPages(totalPages);
 
-		for (let i: number = currentPage * paginCount; i < (currentPage * paginCount) + paginCount; i++) {
-			if (auditLogs[i]) {
-				pageItems.push(auditLogs[i]);
-			} else {
-				break;
-			}
-		}
+		const pageItems: Audit[] = auditLogs.slice(currentPage * paginCount, (currentPage * paginCount) + paginCount)
 		setCurrentPaginate(pageItems);
 	}, [auditLogs, currentPage, userFilter])
 
