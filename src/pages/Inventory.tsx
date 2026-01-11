@@ -28,7 +28,10 @@ const Inventory = () => {
 	const [containerSearch, setContainerSearch] = useState<string>('');
 	const [inventoryDisplay, setInventoryDisplay] = useState<{ categoryId: string; qty: number; name: string }[]>([]);
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
+	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
+
 	const { username, isAuth } = useGetCurrentUser();
+
 	const { addDBAudit } = useSetAuditLogInfo();
 	const { addDBContainer, deleteDBContainer, clearDBContainers } = useSetContainerInfo();
 	const { getDBContainerFromId } = useGetContainerInfo()
@@ -38,6 +41,8 @@ const Inventory = () => {
 	const { cleanupOrphanedItems } = useCleanupOrphanedItems();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
+
+	const MAX_SHOWCASE = 8;
 
   useEffect(() => {
 		if (!isAuth) {
@@ -50,6 +55,10 @@ const Inventory = () => {
 
 		return () => loadCategories();
   }, []);
+
+	useEffect(() => {
+		setContainerPages({});
+	}, [filterBrand, filterStyle, filterSize]);
 
 	useEffect(() => {
 		let unsubscribe: (() => void) | null = null;
@@ -281,6 +290,15 @@ const Inventory = () => {
 		setEditingQuantityValue('');
 	};
 
+	const paginateContainer = (containerId: string, direction: string, maxPages: number) => {
+		const currentPage = containerPages[containerId] || 0;
+		if (direction === 'previous' && currentPage > 0) {
+			setContainerPages({ ...containerPages, [containerId]: currentPage - 1 });
+		} else if (direction === 'next' && currentPage < maxPages - 1) {
+			setContainerPages({ ...containerPages, [containerId]: currentPage + 1 });
+		}
+	};
+
 	const clearContainers = async () => {
 		if (!unsure) {
 			alert('Are you sure you want to clear all containers? \nIf so, press Clear All Containers again.');
@@ -459,70 +477,99 @@ const Inventory = () => {
                 </div>
 
 								<div className="space-y-2 mb-4">
-									{container.items.filter((item) => {
-										const cat = itemCategories[item.id];
+									{(() => {
+										const filteredItems = container.items.filter((item) => {
+											const cat = itemCategories[item.id];
+											if (!cat) return false;
+											if (filterBrand && cat.brand !== filterBrand) return false;
+											if (filterStyle && cat.style !== filterStyle) return false;
+											if (filterSize && cat.size !== filterSize) return false;
+											return true;
+										});
 
-										if (!cat) return false; 
+										const currentPage = containerPages[container.id] || 0;
+										const maxPages = Math.ceil(filteredItems.length / MAX_SHOWCASE);
+										const startIndex = currentPage * MAX_SHOWCASE;
+										const paginatedItems = filteredItems.slice(startIndex, startIndex + MAX_SHOWCASE);
 
-										if (filterBrand && cat.brand !== filterBrand) return false;
-										if (filterStyle && cat.style !== filterStyle) return false;
-										if (filterSize && cat.size !== filterSize) return false;
-
-										return true;
-									}).map( (item) => {
-                    const cat = itemCategories[item.id];
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center bg-gray-100 p-3 hover:bg-gray-200 transition-all duration-300 rounded-md">
-                        <div className="text-sm flex-1">
-                          <span className="font-medium text-gray-800">
-													{cat ? `${cat.brand} - ${cat.style} - ${cat.size}` : "Loading..."}
-                          </span>
-                          <span className="ml-3 text-gray-500">
-														Qty: {item.quantity}
-													</span>
-                        </div>
-                        <div className="flex gap-2 items-center">
-													{editingQuantity === item.id ? (
-														<div>
-															<input 
-																type="number"
-																min="0"
-																value={editingQuantityValue}
-																onChange={(e) => setEditingQuantityValue(e.target.value)}
-																className="w-20 px-2 py-1 ml-2 border border-blue-500 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
-															/>
-															<button
-																onClick={() => saveQuantity(container.id, item.id)}
-																className="px-3 py-1 ml-2 rounded-md text-sm bg-green-500 text-white font-medium hover:bg-green-600">
-																Save
-															</button>
-															<button
-																onClick={cancelEditQuantity}
-																className="px-3 py-1 ml-2 rounded-md text-sm bg-gray-500 text-white font-medium hover:bg-gray-600">
-																Cancel
-															</button>
+										return (
+											<>
+												{paginatedItems.map((item) => {
+													const cat = itemCategories[item.id];
+													return (
+														<div
+															key={item.id}
+															className="flex justify-between items-center bg-gray-100 p-3 hover:bg-gray-200 transition-all duration-300 rounded-md">
+															<div className="text-sm flex-1">
+																<span className="font-medium text-gray-800">
+																	{cat ? `${cat.brand} - ${cat.style} - ${cat.size}` : "Loading..."}
+																</span>
+																<span className="ml-3 text-gray-500">
+																	Qty: {item.quantity}
+																</span>
+															</div>
+															<div className="flex gap-2 items-center">
+																{editingQuantity === item.id ? (
+																	<div>
+																		<input 
+																			type="number"
+																			min="0"
+																			value={editingQuantityValue}
+																			onChange={(e) => setEditingQuantityValue(e.target.value)}
+																			className="w-20 px-2 py-1 ml-2 border border-blue-500 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+																		/>
+																		<button
+																			onClick={() => saveQuantity(container.id, item.id)}
+																			className="px-3 py-1 ml-2 rounded-md text-sm bg-green-500 text-white font-medium hover:bg-green-600">
+																			Save
+																		</button>
+																		<button
+																			onClick={cancelEditQuantity}
+																			className="px-3 py-1 ml-2 rounded-md text-sm bg-gray-500 text-white font-medium hover:bg-gray-600">
+																			Cancel
+																		</button>
+																	</div>
+																) : (
+																	<div>
+																		<button
+																			onClick={() => startEditQuantity(item.id, item.quantity)}
+																			className="px-3 py-1 ml-2 rounded-md text-sm bg-blue-500 text-white font-medium hover:bg-blue-600">
+																			Edit
+																		</button>
+																		<button
+																			onClick={() => deleteItem(container.id, item.id)}
+																			className="px-3 py-1 ml-2 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500">
+																			-
+																		</button>
+																	</div>
+																)}
+															</div>
 														</div>
-													) : (
-														<div>
-															<button
-																onClick={() => startEditQuantity(item.id, item.quantity)}
-																className="px-3 py-1 ml-2 rounded-md text-sm bg-blue-500 text-white font-medium hover:bg-blue-600">
-																Edit
-															</button>
-															<button
-																onClick={() => deleteItem(container.id, item.id)}
-																className="px-3 py-1 ml-2 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500">
-																-
-															</button>
-														</div>
-													)}
-												</div>
-                      </div>
-                    );
-                  })}
-                </div>
+													);
+												})}
+												{maxPages > 1 && (
+													<div className="mt-4 flex items-center justify-between">
+														<button
+															onClick={() => paginateContainer(container.id, 'previous', maxPages)}
+															disabled={currentPage === 0}
+															className={`px-4 py-2 rounded-lg font-medium ${currentPage === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}>
+															Previous
+														</button>
+														<span className="text-gray-600 text-sm">
+															Page {currentPage + 1} of {maxPages}
+														</span>
+														<button
+															onClick={() => paginateContainer(container.id, 'next', maxPages)}
+															disabled={currentPage >= maxPages - 1}
+															className={`px-4 py-2 rounded-lg font-medium ${currentPage >= maxPages - 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}>
+															Next
+														</button>
+													</div>
+												)}
+											</>
+										);
+									})()}
+								</div>
 
                 <div className="flex-grow" />
 
@@ -638,7 +685,7 @@ const Inventory = () => {
           </div>
         )}
 
-        <div className="mt-12 flex flex-col items-center gap-4 mb-60">
+        <div className="mt-12 flex flex-col items-center gap-4">
           <NavLink to="/categories" className="w-full">
             <span className="block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
               Add Categories
@@ -651,7 +698,7 @@ const Inventory = () => {
           </NavLink>
         </div>
 				<div className='block'>
-					<h1 className='text-3xl text-red-500 font-black text-center mb-60'>Danger Zone</h1>
+					<h1 className='text-3xl text-red-500 font-black text-center mb-96 mt-96'>Danger Zone</h1>
 					<button
             onClick={clearContainers}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
