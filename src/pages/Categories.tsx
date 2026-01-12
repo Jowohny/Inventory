@@ -24,13 +24,16 @@ const Categories = () => {
   useEffect(() => {
 		if (!isAuth) {
 			navigate('/');
+			return;
 		}
-	  const unsubscribe = getDBCategories((updateList) => {
-			setCategories(updateList);
-		});
 		
-		return () => unsubscribe();
-  }, []);
+		const loadCategories = async () => {
+				const categoriesList = await getDBCategories();
+				setCategories(categoriesList);
+		};
+		
+		loadCategories();
+  }, [isAuth]);
 
 	const onLogout = () => {
 		localStorage.removeItem('currentUser');
@@ -66,7 +69,7 @@ const Categories = () => {
   const addCategory = async () => {
     if (!brand.trim() || !style.trim() || !size.trim()) return;
 
-		const isDuplicate = await findDBCategoryDuplicate(brand, style, size);
+		const isDuplicate = await findDBCategoryDuplicate(brand.trim(), style.trim(), size.trim());
 
     if (isDuplicate.success) {
       alert('This category already exists!');
@@ -80,6 +83,11 @@ const Categories = () => {
 			username,
 			new Date(Date.now())
 		);
+
+		const categoriesList = await getDBCategories();
+		setCategories(categoriesList);
+
+		setSize('');
   };
 
   const deleteCategory = async (id: string) => {
@@ -94,6 +102,9 @@ const Categories = () => {
 			 username,
 			 new Date(Date.now())
 		);
+
+		const categoriesList = await getDBCategories();
+		setCategories(categoriesList);
   };
 
   const clearCategories = async () => {
@@ -109,6 +120,9 @@ const Categories = () => {
 				username,				
 				new Date(Date.now())
 			);
+
+			const categoriesList = await getDBCategories();
+			setCategories(categoriesList);
 		
       setUnsure(false);
     }
