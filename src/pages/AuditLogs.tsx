@@ -15,8 +15,8 @@ const AuditLogs = () => {
 	const [userFilter, setUserFilter] = useState<string>('');
 	const { isAuth, username } = useGetCurrentUser()
 	const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
-	const { getDBAuditLogs, getUniqueUsers } = useGetAuditLogInfo();
-	const paginCount: number = 8;
+	const { getDBAuditLogs } = useGetAuditLogInfo();
+	const paginCount: number = 10;
 	const upperUsername = username.toUpperCase();
 	const navigate = useNavigate();
 
@@ -26,18 +26,19 @@ const AuditLogs = () => {
 			return;
 		}
 	
-		const unsubscribe = getDBAuditLogs(userFilter, setAuditLogs);
-		return () => unsubscribe();
+		const loadAuditLogs = async () => {
+			const logs = await getDBAuditLogs(userFilter);
+			setAuditLogs(logs);
+			
+			const uniqueUsersSet = new Set<string>();
+			logs.forEach(log => {
+				uniqueUsersSet.add(log.user);
+			});
+			setUniqueUsers([...uniqueUsersSet]);
+		};
 
+		loadAuditLogs();
 	}, [userFilter, isAuth]);
-
-	useEffect(() => {
-		const unsubscribe = getUniqueUsers((users) => {
-			setUniqueUsers(users);
-		});
-	
-		return () => unsubscribe();
-	}, []);
 	
 	useEffect(() => {
 		setCurrentPage(0);
@@ -75,7 +76,12 @@ const AuditLogs = () => {
 				`${username} cleared all audits.`,
 				username,
 				new Date(Date.now())
-			)
+			);
+			
+			const logs = await getDBAuditLogs(userFilter);
+			setAuditLogs(logs);
+			setUniqueUsers([]);
+			
 			setUnsure(false);
 		}
 	}
