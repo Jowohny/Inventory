@@ -1,11 +1,11 @@
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore"
+import { collection, getDocs, orderBy, query, where } from "firebase/firestore"
 import { db } from "../config/firebase-config";
 import type { Audit } from "../interface";
 
 export const useGetAuditLogInfo = () => {
 	const auditLogRef = collection(db, 'audit logs');
 
-	const getDBAuditLogs = (nameFilter: string, onUpdate: (auditLogs: Audit[]) => void ) => {
+	const getDBAuditLogs = async (nameFilter: string): Promise<Audit[]> => {
 		let q;
 		
 		if (nameFilter) {
@@ -21,33 +21,26 @@ export const useGetAuditLogInfo = () => {
 			);
 		}
 
-		const unsubscribe = onSnapshot(q, (snapshot) => {
-			const list = snapshot.docs.map((doc) => ({
-				message: doc.data().message,
-				time: doc.data().time.toDate(),
-				user: doc.data().user
-			}));
+		const snapshot = await getDocs(q);
+		const list = snapshot.docs.map((doc) => ({
+			message: doc.data().message,
+			time: doc.data().time.toDate(),
+			user: doc.data().user
+		}));
 
-			onUpdate(list);
-		});
-
-		return unsubscribe;
+		return list;
 	}
 
-	const getUniqueUsers = (onUpdate: (users: string[]) => void) => {
+	const getUniqueUsers = async (): Promise<string[]> => {
 		const q = query(auditLogRef);
+		const snapshot = await getDocs(q);
 	
-		const unsubscribe = onSnapshot(q, (snapshot) => {
-			const uniqueUsers = new Set<string>();
-	
-			snapshot.docs.forEach((doc) => {
-				uniqueUsers.add(doc.data().user);
-			});
-	
-			onUpdate([...uniqueUsers]);
+		const uniqueUsers = new Set<string>();
+		snapshot.docs.forEach((doc) => {
+			uniqueUsers.add(doc.data().user);
 		});
 	
-		return unsubscribe;
+		return [...uniqueUsers];
 	};
 	
 
