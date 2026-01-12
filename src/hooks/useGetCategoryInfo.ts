@@ -1,25 +1,22 @@
-import { collection, getDocs, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 import type { Category } from "../interface";
 
 export const useGetCategoryInfo = () => {
 	const categoryRef = collection(db, "categories");
 
-	const getDBCategories = (onUpdate: (categories: Category[]) => void) => {
+	const getDBCategories = async (): Promise<Category[]> => {
 		const q = query(categoryRef, orderBy('id', 'desc'));
+		const snapshot = await getDocs(q);
 
-		const unsubscribe = onSnapshot(q, (snapshot) => {
-			const list = snapshot.docs.map(doc => ({
-				id: doc.data().id,
-				brand: doc.data().brand,
-				style: doc.data().style,
-				size: doc.data().size
-			}));
+		const list = snapshot.docs.map(doc => ({
+			id: doc.data().id,
+			brand: doc.data().brand,
+			style: doc.data().style,
+			size: doc.data().size
+		}));
 
-			onUpdate(list);
-		});
-
-		return unsubscribe;
+		return list;
 	};
 
 	const getDBCategoryFromId = async (id: string) => {
