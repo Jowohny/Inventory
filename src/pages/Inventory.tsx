@@ -47,14 +47,16 @@ const Inventory = () => {
   useEffect(() => {
 		if (!isAuth) {
 			navigate('/');
+			return;
 		}
 
-	  const loadCategories = getDBCategories((updatedCategories) => {
-			setCategories(updatedCategories)
-		});
+		const loadCategories = async () => {
+			const categoriesList = await getDBCategories();
+			setCategories(categoriesList);
+		};
 
-		return () => loadCategories();
-  }, []);
+		loadCategories();
+  }, [isAuth]);
 
 	useEffect(() => {
 		setContainerPages({});
@@ -547,6 +549,7 @@ const Inventory = () => {
 														</div>
 													);
 												})}
+												
 												{maxPages > 1 && (
 													<div className="mt-4 flex items-center justify-between">
 														<button
