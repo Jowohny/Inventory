@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo} from 'react';
+import { useState, useEffect, useMemo, useRef} from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import type { Container, Item, Category } from '../interface';
 import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
@@ -34,13 +34,14 @@ const Inventory = () => {
 
 	const { addDBAudit } = useSetAuditLogInfo();
 	const { addDBContainer, deleteDBContainer, clearDBContainers } = useSetContainerInfo();
-	const { getDBContainerFromId } = useGetContainerInfo()
 	const { getDBCategories }  = useGetCategoryInfo();
 	const { getDBContainers } = useGetContainerInfo();
 	const { addItemToContainer, deleteItemFromContainer, adjustItemQuantityFromContainer } = useSetItemInfo();
 	const { cleanupOrphanedItems } = useCleanupOrphanedItems();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
+	
+	const prevCategoriesLengthRef = useRef<number>(0);
 
 	const MAX_SHOWCASE = 8;
 
@@ -103,7 +104,10 @@ const Inventory = () => {
 	}, [containers, categoryMap]);
 
 	useEffect(() => {
-		cleanupOrphanedItems(categories);
+		if (prevCategoriesLengthRef.current > 0 && categories.length < prevCategoriesLengthRef.current) {
+			cleanupOrphanedItems(categories);
+		}
+		prevCategoriesLengthRef.current = categories.length;
 	}, [categories, cleanupOrphanedItems]);
 
 	const totalInventory = useMemo(() => {
@@ -197,7 +201,7 @@ const Inventory = () => {
     const incrementBy = parseInt(quantity);
 
     if (existingItem) {
-      await adjustItemQuantityFromContainer(containerId, existingItem.id, incrementBy)
+      await adjustItemQuantityFromContainer(containerId, existingItem.id, existingItem.quantity + incrementBy, itemContainer.items)
     } else {
       const newItem: Item = {
         id: Date.now().toString(),
@@ -205,7 +209,7 @@ const Inventory = () => {
         quantity: incrementBy,
       };
 
-			await addItemToContainer(containerId, newItem)
+			await addItemToContainer(containerId, newItem, itemContainer.items)
     }
 
 		await addDBAudit(
@@ -222,15 +226,19 @@ const Inventory = () => {
   };
 
   const deleteItem = async (containerId: string, itemId: string) => {
-		const itemContainer = await getDBContainerFromId(containerId)
+		const itemContainer = containers.find((container: Container) => {
+			return container.id == containerId;
+		});
+
 		if (!itemContainer) return;
 
-		const itemDeleted: Item = itemContainer.items.find((c: Item) => c.id == itemId)
+		const itemDeleted = itemContainer.items.find((c: Item) => c.id == itemId)
+
 		if (!itemDeleted) return;
 
 		const category = categoryMap[itemDeleted.categoryId];
 
-		await deleteItemFromContainer(containerId, itemId)
+		await deleteItemFromContainer(containerId, itemId, itemContainer.items)
 
 		await addDBAudit(
 			`${username} deleted ${category.size} ${category.brand} ${category.style} from a container. (${itemContainer!.name})`,
@@ -240,13 +248,17 @@ const Inventory = () => {
 	};
 
 	const updateItemQuantity = async (containerId: string, itemId: string, newQuantity: number) => {
-		const itemContainer = await getDBContainerFromId(containerId)
+		const itemContainer = containers.find((container) => {
+			return container.id == containerId;
+		})
+
 		if (!itemContainer) return;
 
 		const item = itemContainer.items.find((i: Item) => i.id === itemId);
+		
 		if (!item) return;
 
-		const results = await adjustItemQuantityFromContainer(itemContainer.id, item.id, newQuantity)
+		const results = await adjustItemQuantityFromContainer(itemContainer.id, item.id, newQuantity, itemContainer.items)
 
 		if (!results) return;
 
