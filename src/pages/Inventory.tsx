@@ -713,7 +713,7 @@ const Inventory = () => {
           </NavLink>
         </div>
 				<div className='block'>
-					<h1 className='text-3xl text-red-500 font-black text-center mb-96 mt-96'>Danger Zone</h1>
+					<h1 className='text-3xl text-red-500 font-black text-center mb-[50rem] mt-[50rem]'>Danger Zone</h1>
 					<button
             onClick={clearContainers}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
