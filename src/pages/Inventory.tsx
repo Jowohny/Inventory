@@ -29,6 +29,9 @@ const Inventory = () => {
 	const [inventoryDisplay, setInventoryDisplay] = useState<{ categoryId: string; qty: number; name: string }[]>([]);
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
+	const	[authString, setAuthString] = useState<string>('')
+	const clearString = 'Clear-All-Containers'
+
 
 	const { username, isAuth } = useGetCurrentUser();
 
@@ -315,20 +318,24 @@ const Inventory = () => {
 
 	const clearContainers = async () => {
 		if (!unsure) {
-			alert('Are you sure you want to clear all containers? \nIf so, press Clear All Containers again.');
+			alert('Are you sure you want to clear all audits? \nIf so, then type in Clear All Audits and click the button again.\nReload the page if this was a mistake.');
 			setUnsure(true);
 			return;
+		} else {
+			if (authString === clearString) {
+				await clearDBContainers();
+
+				await addDBAudit(
+					`${username} cleared all containers.`,
+					username,
+					new Date(Date.now())
+				);
+
+				setUnsure(false);
+			} else {
+				alert('The input code doesn\'t match. Reload the page if you change your mind.');
+			}
 		}
-
-		await clearDBContainers();
-
-		await addDBAudit(
-			`${username} cleared all containers.`,
-			username,
-			new Date(Date.now())
-		);
-
-		setUnsure(false);
 	};
 
   const getBrands = () => {
@@ -712,8 +719,17 @@ const Inventory = () => {
             </span>
           </NavLink>
         </div>
-				<div className='block'>
+				<div className='block mx-auto'>
 					<h1 className='text-3xl text-red-500 font-black text-center mb-[50rem] mt-[50rem]'>Danger Zone</h1>
+					{ unsure && (
+						<input  
+							onChange={(e) => setAuthString(e.target.value)}
+							type="text" 
+							value={authString}
+							placeholder={clearString}
+							className='w-full text-center text-xl px-2 py-1 mb-8 border border-blue-500 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700'
+						/>
+					)}
 					<button
             onClick={clearContainers}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">

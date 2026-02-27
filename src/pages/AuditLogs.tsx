@@ -13,12 +13,14 @@ const AuditLogs = () => {
 	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([]);
 	const [maxPages, setMaxPages] = useState<number>(0);
 	const [userFilter, setUserFilter] = useState<string>('');
+	const	[authString, setAuthString] = useState<string>('')
 	const { isAuth, username } = useGetCurrentUser()
 	const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
 	const { getDBAuditLogs } = useGetAuditLogInfo();
 	const paginCount: number = 10;
 	const upperUsername = username.toUpperCase();
 	const navigate = useNavigate();
+	const clearString = 'Clear-All-Audits';
 
 	useEffect(() => {
 		if (!isAuth) {
@@ -67,22 +69,27 @@ const AuditLogs = () => {
 
 	const clearAudits = async () => {
 		if (!unsure) {
-			alert('Are you sure you want to clear all audits? \nIf so, then press Clear All Audits again');
+			alert('Are you sure you want to clear all audits? \nIf so, then type in Clear All Audits and click the button again.\nReload the page if this was a mistake.');
 			setUnsure(true);
 			return;
 		} else {
-			await clearDBAudits();
-			await addDBAudit(
-				`${username} cleared all audits.`,
-				username,
-				new Date(Date.now())
-			);
-			
-			const logs = await getDBAuditLogs(userFilter);
-			setAuditLogs(logs);
-			setUniqueUsers([]);
-			
-			setUnsure(false);
+
+			if (authString === clearString) {
+				await clearDBAudits();
+				await addDBAudit(
+					`${username} cleared all audits.`,
+					username,
+					new Date(Date.now())
+				);
+
+				const logs = await getDBAuditLogs(userFilter);
+				setAuditLogs(logs);
+				setUniqueUsers([]);
+
+				setUnsure(false);
+			} else {
+				alert('The input code doesn\'t match. Reload the page if you change your mind.');
+			}			
 		}
 	}
 
@@ -178,6 +185,15 @@ const AuditLogs = () => {
         </div>
 				<div className='block'>
 					<h1 className='text-3xl text-red-500 font-black text-center mt-[50rem] mb-[50rem]'>Danger Zone</h1>
+					{ unsure && (
+						<input  
+							onChange={(e) => setAuthString(e.target.value)}
+							type="text" 
+							value={authString}
+							className='w-full px-2 py-1 text-center mb-8 border border-blue-500 text-xl rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700'
+							placeholder={clearString}
+						/>
+					)}
 					<button
             onClick={clearAudits}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">

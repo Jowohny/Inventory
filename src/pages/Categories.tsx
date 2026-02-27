@@ -14,12 +14,14 @@ const Categories = () => {
 	const [unsure, setUnsure] = useState(false);
 	const [openBrand, setOpenBrand] = useState<string>('');
   const [openStyle, setOpenStyle] = useState<string>('');
+	const [authString, setAuthString] = useState<string>('');
 	const { username, isAuth } = useGetCurrentUser();
 	const { addDBCategory, deleteDBCategory, clearDBCategories } = useSetCategoryInfo();
 	const { getDBCategories, findDBCategoryDuplicate } = useGetCategoryInfo()
 	const { addDBAudit } = useSetAuditLogInfo();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
+	const clearString = 'Clear-All-Categories';
 
   useEffect(() => {
 		if (!isAuth) {
@@ -98,9 +100,9 @@ const Categories = () => {
     if (!categoryToDelete) return; 
 		
 		await addDBAudit(
-			 `${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
-			 username,
-			 new Date(Date.now())
+			`${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
+			username,
+			new Date(Date.now())
 		);
 
 		const categoriesList = await getDBCategories();
@@ -109,22 +111,26 @@ const Categories = () => {
 
   const clearCategories = async () => {
     if (!unsure) {
-      alert('Are you sure you want to clear all categories? \nIf, so press clear all categories again.');
+			alert('Are you sure you want to clear all audits? \nIf so, then type in Clear All Audits and click the button again.\nReload the page if this was a mistake.');
       setUnsure(true);
       return;
     } else {
-			await clearDBCategories();
+			if (authString === clearString) {
+				await clearDBCategories();
 
-			await addDBAudit(
-				`${username} cleared all categories.`,
-				username,				
-				new Date(Date.now())
-			);
+				await addDBAudit(
+					`${username} cleared all categories.`,
+					username,				
+					new Date(Date.now())
+				);
 
-			const categoriesList = await getDBCategories();
-			setCategories(categoriesList);
-		
-      setUnsure(false);
+				const categoriesList = await getDBCategories();
+				setCategories(categoriesList);
+			
+				setUnsure(false);
+			} else {
+				alert('The input code doesn\'t match. Reload the page if you change your mind.');
+			}
     }
   };
 
@@ -282,6 +288,15 @@ const Categories = () => {
         </div>
 				<div className='block'>
 					<h1 className='text-3xl text-red-500 font-black text-center mt-[50rem] mb-[50rem]'>Danger Zone</h1>
+					{ unsure && (
+						<input  
+							onChange={(e) => setAuthString(e.target.value)}
+							type="text" 
+							value={authString}
+							className='w-full px-2 py-1 text-center mb-8 border border-blue-500 text-xl rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700'
+							placeholder={clearString}
+						/>
+					)}
 					<button
             onClick={clearCategories}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
