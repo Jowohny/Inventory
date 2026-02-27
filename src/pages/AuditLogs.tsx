@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { Audit } from "../interface"
 import { NavLink, useNavigate } from "react-router-dom"
 import { useSetAuditLogInfo } from "../hooks/useSetAuditLogInfo"
@@ -21,6 +21,14 @@ const AuditLogs = () => {
 	const upperUsername = username.toUpperCase();
 	const navigate = useNavigate();
 	const clearString = 'Clear-All-Audits';
+
+	const filteredAudits = useMemo(() => {
+		if (userFilter !== '') {
+			return auditLogs.filter(a => a.user === userFilter);
+		} else {
+			return auditLogs;
+		}
+	}, [auditLogs, userFilter])
 
 	useEffect(() => {
 		if (!isAuth) {
@@ -47,10 +55,10 @@ const AuditLogs = () => {
 	}, [userFilter]);
 
 	useEffect(() => {
-		const totalPages = Math.ceil(auditLogs.length/paginCount);
+		const totalPages = Math.ceil(filteredAudits.length/paginCount);
 		setMaxPages(totalPages);
 
-		const pageItems: Audit[] = auditLogs.slice(currentPage * paginCount, (currentPage * paginCount) + paginCount)
+		const pageItems: Audit[] = filteredAudits.slice(currentPage * paginCount, (currentPage * paginCount) + paginCount)
 		setCurrentPaginate(pageItems);
 	}, [auditLogs, currentPage, userFilter])
 
