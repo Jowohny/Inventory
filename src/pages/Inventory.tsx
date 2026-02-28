@@ -11,11 +11,12 @@ import { useCleanupOrphanedItems } from '../hooks/useCleanupOrphanedItems';
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
-	const [filteredContainters, setFilteredContainers] = useState<Container[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
-	const [openTotal, setOpenTotal] = useState<boolean>(false)
+	const [currentPage, setCurrentPage] = useState<number>(0);
+	const [maxPages, setMaxPages] = useState<number>(0);
+	const [openTotal, setOpenTotal] = useState<boolean>(false);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -31,6 +32,7 @@ const Inventory = () => {
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
 	const	[authString, setAuthString] = useState<string>('')
+	const paginCount = 6;
 	const clearString = 'Clear-All-Containers'
 
 
@@ -48,6 +50,27 @@ const Inventory = () => {
 	const prevCategoriesLengthRef = useRef<number>(0);
 
 	const MAX_SHOWCASE = 8;
+
+	const filteredContainers = useMemo(() => {
+		return containers.filter(container => {
+			return container.items.some(item => {
+				const category = categories.find(c => c.id === item.categoryId);
+				if (!category) return false;
+
+				if (filterBrand && category.brand !== filterBrand) return false;
+				if (filterStyle && category.style !== filterStyle) return false;
+				if (filterSize && category.size !== filterSize) return false;
+
+				if (!container.name.toLowerCase().includes(containerSearch.toLowerCase())) return false;
+
+				return true;
+			});
+		});
+	}, [filterBrand, filterSize, filterStyle, containerSearch, containers])
+
+	const currentPaginate = useMemo(() => {
+		return filteredContainers.slice(currentPage*paginCount, (currentPage*paginCount)+paginCount)
+	}, [filteredContainers, currentPage, paginCount])
 
   useEffect(() => {
 		if (!isAuth) {
@@ -70,28 +93,16 @@ const Inventory = () => {
   }, [isAuth]);
 
 	useEffect(() => {
+		setMaxPages(Math.ceil(filteredContainers.length / paginCount));
+	}, [filteredContainers])
+
+	useEffect(() => {
 		setContainerPages({});
 	}, [filterBrand, filterStyle, filterSize]);
 
 	useEffect(() => {
-		const filteredList: Container[] = containers.filter(container => {
-			return container.items.some(item => {
-				const category = categories.find(c => c.id === item.categoryId);
-				if (!category) return false;
-
-				if (filterBrand && category.brand !== filterBrand) return false;
-				if (filterStyle && category.style !== filterStyle) return false;
-				if (filterSize && category.size !== filterSize) return false;
-
-				if (!container.name.toLowerCase().includes(containerSearch.toLowerCase())) return false;
-
-				return true;
-			});
-		});
-
-		setFilteredContainers(filteredList)
-	}, [filterBrand, filterSize, filterStyle, containerSearch, containers])
-
+		setCurrentPage(0);
+	}, [filterBrand, filterStyle, filterSize, containerSearch]);
 
 	const categoryMap = useMemo(() => {
 		const map: Record<string, Category> = {};
@@ -176,6 +187,14 @@ const Inventory = () => {
 
 		setNewContainerName('');
   };
+
+	const paginate = (direction: string) => {
+		if (direction === 'previous' && currentPage > 0) {
+			setCurrentPage(currentPage - 1)
+		} else if (direction === 'next' && currentPage < maxPages - 1) {
+			setCurrentPage(currentPage + 1)
+		}
+	}
 
   const deleteContainer = async (id: string) => {
 		await deleteDBContainer(id);
@@ -480,7 +499,7 @@ const Inventory = () => {
 					)}
 				</div>
 
-        {filteredContainters.length === 0 ? (
+        {filteredContainers.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
             <p className="text-gray-500 text-lg">
               There are currently no containers...
@@ -488,7 +507,7 @@ const Inventory = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {filteredContainters.map((container) => (
+            {currentPaginate.map((container) => (
               <div
                 key={container.id}
                 className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-all hover:shadow-xl hover:scale-101 duration-300">
@@ -712,7 +731,25 @@ const Inventory = () => {
             ))}
           </div>
         )}
-
+				{maxPages > 1 && (
+					<div className="mt-4 flex items-center justify-between">
+						<button
+							onClick={() => paginate('previous')}
+							disabled={currentPage === 0}
+							className={`px-4 py-2 rounded-lg font-medium ${ currentPage === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
+							Previous
+						</button>
+						<span className="text-gray-600 text-sm">
+							Page {currentPage + 1} of {maxPages}
+						</span>
+						<button
+							onClick={() => paginate('next')}
+							disabled={currentPage >= maxPages - 1}
+							className={`px-4 py-2 rounded-lg font-medium ${ currentPage >= maxPages - 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
+							Next
+						</button>
+					</div>
+				)}
         <div className="mt-12 flex flex-col items-center gap-4">
           <NavLink to="/categories" className="w-full">
             <span className="block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
