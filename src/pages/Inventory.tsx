@@ -11,6 +11,7 @@ import { useCleanupOrphanedItems } from '../hooks/useCleanupOrphanedItems';
 
 const Inventory = () => {
   const [containers, setContainers] = useState<Container[]>([]);
+	const [filteredContainters, setFilteredContainers] = useState<Container[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
@@ -54,11 +55,17 @@ const Inventory = () => {
 			return;
 		}
 
+		const loadContainers = async () => {
+			const containerList = await getDBContainers();
+			setContainers(containerList)
+		}
+
 		const loadCategories = async () => {
 			const categoriesList = await getDBCategories();
 			setCategories(categoriesList);
 		};
 
+		loadContainers();
 		loadCategories();
   }, [isAuth]);
 
@@ -67,25 +74,24 @@ const Inventory = () => {
 	}, [filterBrand, filterStyle, filterSize]);
 
 	useEffect(() => {
-		let unsubscribe: (() => void) | null = null;
-	
-		const load = () => {
-			unsubscribe = getDBContainers (
-				containerSearch,
-				filterBrand,
-				filterStyle,
-				filterSize,
-				categories,      
-				(updated) => setContainers(updated)
-			);
-		};
-	
-		load();
-	
-		return () => {
-			if (unsubscribe) unsubscribe();
-		};
-	}, [containerSearch, filterBrand, filterStyle, filterSize, categories]);
+		const filteredList: Container[] = containers.filter(container => {
+			return container.items.some(item => {
+				const category = categories.find(c => c.id === item.categoryId);
+				if (!category) return false;
+
+				if (filterBrand && category.brand !== filterBrand) return false;
+				if (filterStyle && category.style !== filterStyle) return false;
+				if (filterSize && category.size !== filterSize) return false;
+
+				if (!container.name.toLowerCase().includes(containerSearch.toLowerCase())) return false;
+
+				return true;
+			});
+		});
+
+		setFilteredContainers(filteredList)
+	}, [filterBrand, filterSize, filterStyle, containerSearch, containers])
+
 
 	const categoryMap = useMemo(() => {
 		const map: Record<string, Category> = {};
@@ -474,7 +480,7 @@ const Inventory = () => {
 					)}
 				</div>
 
-        {containers.length === 0 ? (
+        {filteredContainters.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
             <p className="text-gray-500 text-lg">
               There are currently no containers...
@@ -482,7 +488,7 @@ const Inventory = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
-            {containers.map((container) => (
+            {filteredContainters.map((container) => (
               <div
                 key={container.id}
                 className="bg-white shadow-md border border-gray-200 rounded-xl p-6 flex flex-col transition-all hover:shadow-xl hover:scale-101 duration-300">
