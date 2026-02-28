@@ -5,7 +5,7 @@ export const useGetContainerInfo = () => {
 	const containerRef = collection(db, "containers");
 
 	const getDBContainers = async () => {
-		const q = query(containerRef, orderBy('name', 'desc'))
+		const q = query(containerRef, orderBy('name', 'asc'))
 		const snapshot = await getDocs(q)
 
 		const list = snapshot.docs.map(doc => ({

@@ -16,7 +16,6 @@ const Inventory = () => {
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState<number>(0);
 	const [maxPages, setMaxPages] = useState<number>(0);
-	const [openTotal, setOpenTotal] = useState<boolean>(false);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -380,7 +379,7 @@ const Inventory = () => {
 
 	return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-full md:max-w-4xl mx-auto">
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Inventory Tracker
         </h1>
@@ -467,36 +466,23 @@ const Inventory = () => {
 				</div>
 				
 				<div className="bg-white border border-gray-200 rounded-xl shadow-md mb-6">
-					<button
-						onClick={() => setOpenTotal(!openTotal)}
-						className="w-full flex justify-between items-center text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
-							<span className="font-semibold text-lg text-gray-800">Total Inventory</span>
-							<img src="/down.png" className='h-4 w-4 rounded-full'/>
-						</button>
-					{openTotal && (
-						<div className="px-4 pb-4">
-							<div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
-								<span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
-									<p className="text-gray-800 font-bold">Types:</p>
-									{Object.keys(totalInventory).length}
-								</span>
-								<span className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
-									<p className="font-bold text-gray-800">Total Qty:</p>
-									{Object.values(totalInventory).reduce((a, b) => a + b, 0)}
-								</span>
-							</div>
-							<div className="divide-y divide-gray-200 rounded-lg border border-gray-100">
-								{inventoryDisplay.map(({ categoryId, qty, name }) => (
-									<div key={categoryId} className="flex items-center justify-between bg-white px-3 py-2">
-										<span className="text-sm text-gray-800">{name}</span>
-										<span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-											Qty: {qty}
-										</span>
-									</div>
-								))}
-							</div>
+					<div className="w-full flex justify-between items-center text-left p-4 hover:bg-gray-50 rounded-xl transition-colors">
+						<span className="font-semibold text-lg text-gray-800">Total Inventory</span>
+						<div className='flex flex-row gap-3 text-sm'>
+							<span className="inline-flex items-center gap-1 bg-gray-200 px-2 py-1 rounded-md">
+								<p className="text-gray-800 font-bold">Types:</p>
+								{Object.keys(totalInventory).length}
+							</span>
+							<span className="inline-flex items-center gap-1 bg-gray-200 px-2 py-1 rounded-md">
+								<p className="font-bold text-gray-800">Total Qty:</p>
+								{Object.values(totalInventory).reduce((a, b) => a + b, 0)}
+							</span>
+							<span className="inline-flex items-center gap-1 bg-gray-200 px-2 py-1 rounded-md">
+								<p className="font-bold text-gray-800">Container Count:</p>
+								{containers.length}
+							</span>
 						</div>
-					)}
+					</div>
 				</div>
 
         {filteredContainers.length === 0 ? (
@@ -546,7 +532,7 @@ const Inventory = () => {
 														<div
 															key={item.id}
 															className="flex justify-between items-center bg-gray-100 p-3 hover:bg-gray-200 transition-all duration-300 rounded-md">
-															<div className="text-sm flex-1">
+															<div className="text-xs md:text-sm flex-1">
 																<span className="font-medium text-gray-800">
 																	{cat ? `${cat.brand} - ${cat.style} - ${cat.size}` : "Loading..."}
 																</span>
@@ -732,7 +718,7 @@ const Inventory = () => {
           </div>
         )}
 				{maxPages > 1 && (
-					<div className="mt-4 flex items-center justify-between">
+					<div className="my-16 flex items-center justify-between">
 						<button
 							onClick={() => paginate('previous')}
 							disabled={currentPage === 0}
