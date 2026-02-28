@@ -27,7 +27,6 @@ const Inventory = () => {
 	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
 	const [containerSearch, setContainerSearch] = useState<string>('');
-	const [inventoryDisplay, setInventoryDisplay] = useState<{ categoryId: string; qty: number; name: string }[]>([]);
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
 	const	[authString, setAuthString] = useState<string>('')
@@ -138,27 +137,6 @@ const Inventory = () => {
 		});
 		return groups;
 	}, [containers]);
-
-	useEffect(() => {
-		const entries = Object.entries(totalInventory);
-
-		const results = entries.map(([categoryId, qty]) => {
-			const cat = categoryMap[categoryId];
-			if (!cat) return null;
-
-			return {
-				categoryId,
-				qty,
-				name: `${cat.brand} ${cat.style} ${cat.size}`.trim(),
-			};
-		});
-
-		setInventoryDisplay(
-			results
-				.filter((r): r is { categoryId: string; qty: number; name: string } => r !== null)
-				.sort((a, b) => a.name.localeCompare(b.name))
-		);
-	}, [totalInventory, categoryMap]);
 
 	const onLogout = () => {
 		localStorage.removeItem('currentUser')
