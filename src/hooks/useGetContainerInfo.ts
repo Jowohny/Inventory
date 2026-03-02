@@ -1,6 +1,5 @@
 import { collection, orderBy, getDoc, query, doc, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase-config";
-import type { Container } from "../interface"
 
 export const useGetContainerInfo = () => {
 	const containerRef = collection(db, "containers");
