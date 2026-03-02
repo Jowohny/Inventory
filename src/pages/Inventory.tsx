@@ -202,109 +202,87 @@ const Inventory = () => {
 	const addItem = async (containerId: string) => {
     if (!selectedBrand || !selectedStyle || !selectedSize || !quantity) return;
 
-    const category = categories.find(
-      (c) =>
-        c.brand === selectedBrand &&
-        c.style === selectedStyle &&
-        c.size === selectedSize
+    const category = categories.find(c => 
+      c.brand === selectedBrand && c.style === selectedStyle && c.size === selectedSize
     );
 
-    const itemContainer = containers.find((c) => c.id === containerId);
+    const itemContainer = containers.find(c => c.id === containerId);
     if (!itemContainer || !category) return;
 
-
-    const existingItem = itemContainer.items.find(
-      (i) => i.categoryId === category.id
-    );
-
     const incrementBy = parseInt(quantity);
+    const existingItem = itemContainer.items.find(i => i.categoryId === category.id);
+    const newItemId = Date.now().toString();
 
-    if (existingItem) {
-      await adjustItemQuantityFromContainer(containerId, existingItem.id, existingItem.quantity + incrementBy, itemContainer.items)
-    } else {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        categoryId: category.id,
-        quantity: incrementBy,
-      };
+    setContainers(prev => prev.map(c => {
+      if (c.id !== containerId) return c;
+      let newItems;
+      if (existingItem) {
+        newItems = c.items.map(item => 
+          item.id === existingItem.id ? { ...item, quantity: item.quantity + incrementBy } : item
+        );
+      } else {
+        newItems = [...c.items, { id: newItemId, categoryId: category.id, quantity: incrementBy }];
+      }
+      return { ...c, items: newItems };
+    }));
 
-			await addItemToContainer(containerId, newItem, itemContainer.items)
-    }
-
-		await addDBAudit(
-			`${username} added ${incrementBy} of '${category.size} ${category.brand} ${category.style}'. (${itemContainer.name})`,
-			username,
-			new Date(Date.now())
-		);
-		
     setAddingItemTo(null);
     setSelectedBrand('');
     setSelectedStyle('');
     setSelectedSize('');
     setQuantity('1');
+
+    if (existingItem) {
+      await adjustItemQuantityFromContainer(containerId, existingItem.id, existingItem.quantity + incrementBy, itemContainer.items);
+    } else {
+      await addItemToContainer(containerId, { id: newItemId, categoryId: category.id, quantity: incrementBy }, itemContainer.items);
+    }
+
+    await addDBAudit(`${username} added ${incrementBy} of ${category.brand} to ${itemContainer.name}`, username, new Date());
   };
 
   const deleteItem = async (containerId: string, itemId: string) => {
-		const itemContainer = containers.find((container: Container) => {
-			return container.id == containerId;
-		});
+    const itemContainer = containers.find(c => c.id === containerId);
+    if (!itemContainer) return;
 
-		if (!itemContainer) return;
+    const itemToDelete = itemContainer.items.find(i => i.id === itemId);
+    if (!itemToDelete) return;
+    const cat = categoryMap[itemToDelete.categoryId];
 
-		const itemDeleted = itemContainer.items.find((c: Item) => c.id == itemId)
+    setContainers(prev => prev.map(c => {
+      if (c.id !== containerId) return c;
+      return { ...c, items: c.items.filter(i => i.id !== itemId) };
+    }));
 
-		if (!itemDeleted) return;
-
-		const category = categoryMap[itemDeleted.categoryId];
-
-		await deleteItemFromContainer(containerId, itemId, itemContainer.items)
-
-		await addDBAudit(
-			`${username} deleted ${category.size} ${category.brand} ${category.style} from a container. (${itemContainer!.name})`,
-			username,
-			new Date(Date.now())
-		)
-	};
+    await deleteItemFromContainer(containerId, itemId, itemContainer.items);
+    await addDBAudit(`${username} removed ${cat?.brand} from ${itemContainer.name}`, username, new Date());
+  };
 
 	const updateItemQuantity = async (containerId: string, itemId: string, newQuantity: number) => {
-		const itemContainer = containers.find((container) => {
-			return container.id == containerId;
-		})
+    const itemContainer = containers.find(c => c.id === containerId);
+    if (!itemContainer) return;
 
-		if (!itemContainer) return;
+    const item = itemContainer.items.find(i => i.id === itemId);
+    if (!item) return;
 
-		const item = itemContainer.items.find((i: Item) => i.id === itemId);
-		
-		if (!item) return;
+    const oldQty = item.quantity;
 
-		const results = await adjustItemQuantityFromContainer(itemContainer.id, item.id, newQuantity, itemContainer.items)
+    setContainers(prev => prev.map(c => {
+      if (c.id !== containerId) return c;
+      return {
+        ...c,
+        items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i)
+      };
+    }));
+    setEditingQuantity(null);
 
-		if (!results) return;
-
-		const category = categoryMap[item.categoryId];
-		if (!category) {
-			setEditingQuantity(null);
-			return;
-		}
-
-		if (results.newAmount === results.oldAmount) {
-			setEditingQuantity(null);
-			return;
-		} else if (results!.difference < 0) {
-			await addDBAudit(
-				`${username} removed ${-results.difference} from '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
-				username,
-				new Date(Date.now())
-			);
-		} else {
-			await addDBAudit(
-				`${username} added ${results.difference} to '${category.size} ${category.brand} ${category.style}'. (${results.oldAmount} -> ${results.newAmount}) (${itemContainer.name})`,
-				username,
-				new Date(Date.now())
-			);
-		}
-		setEditingQuantity(null);
-	};
+    const results = await adjustItemQuantityFromContainer(containerId, itemId, newQuantity, itemContainer.items);
+    const cat = categoryMap[item.categoryId];
+    
+    if (results && cat) {
+      await addDBAudit(`${username} updated ${cat.brand} qty: ${oldQty} -> ${newQuantity}`, username, new Date());
+    }
+  };
 
 	const startEditQuantity = (itemId: string, currentQuantity: number) => {
 		setEditingQuantity(itemId);
