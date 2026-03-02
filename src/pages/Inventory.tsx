@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef} from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { Container, Item, Category } from '../interface';
+import type { Container, Category } from '../interface';
 import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
 import { useSetContainerInfo } from '../hooks/useSetContainerInfo';
 import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
