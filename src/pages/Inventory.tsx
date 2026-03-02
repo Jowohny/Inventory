@@ -51,20 +51,21 @@ const Inventory = () => {
 
 	const filteredContainers = useMemo(() => {
 		return containers.filter(container => {
+			const matchesSearch = container.name.toLowerCase().includes(containerSearch.toLowerCase());
+			if (!matchesSearch) return false;
+	
+			if (!filterBrand && !filterStyle && !filterSize) return true;
+	
 			return container.items.some(item => {
 				const category = categories.find(c => c.id === item.categoryId);
 				if (!category) return false;
-
 				if (filterBrand && category.brand !== filterBrand) return false;
 				if (filterStyle && category.style !== filterStyle) return false;
 				if (filterSize && category.size !== filterSize) return false;
-
-				if (!container.name.toLowerCase().includes(containerSearch.toLowerCase())) return false;
-
 				return true;
 			});
 		});
-	}, [filterBrand, filterSize, filterStyle, containerSearch, containers])
+	}, [filterBrand, filterSize, filterStyle, containerSearch, containers, categories]);
 
 	const currentPaginate = useMemo(() => {
 		return filteredContainers.slice(currentPage*paginCount, (currentPage*paginCount)+paginCount)
@@ -155,7 +156,18 @@ const Inventory = () => {
       return;
     }
 
+		const newId = Date.now().toString();
+    const newContainer: Container = { 
+      id: newId, 
+      name: newContainerName.trim(), 
+      items: [] 
+    };
+
+
 		await addDBContainer(Date.now().toString(), newContainerName.trim(), []);
+
+		setContainers(prev => [...prev, newContainer].sort((a, b) => a.name.localeCompare(b.name)));
+		
 		await addDBAudit(
 			`${username} added a container. (${newContainerName.trim()})`,
 			username,
@@ -177,6 +189,8 @@ const Inventory = () => {
 		await deleteDBContainer(id);
 
 		const containerDeleted = containers.find(c => c.id === id);
+
+		setContainers(prev => prev.filter(c => c.id !== id));
 
 		await addDBAudit(
 			`${username} deleted a container. (${containerDeleted!.name.trim()})`,
