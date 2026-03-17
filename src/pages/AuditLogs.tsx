@@ -1,141 +1,92 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import type { Audit } from "../interface"
 import { NavLink, useNavigate } from "react-router-dom"
 import { useSetAuditLogInfo } from "../hooks/useSetAuditLogInfo"
 import { useGetAuditLogInfo } from "../hooks/useGetAuditLogInfo"
 import { useGetCurrentUser } from "../hooks/useGetCurrentUser"
+import { QueryDocumentSnapshot } from "firebase/firestore"
 
 const AuditLogs = () => {
-	const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
-	const [unsure, setUnsure] = useState<boolean>(false);
-	const [uniqueUsers, setUniqueUsers] = useState<string[]>([])
-	const [currentPage, setCurrentPage] = useState<number>(0);
-	const [currentPaginate, setCurrentPaginate] = useState<Audit[]>([]);
-	const [maxPages, setMaxPages] = useState<number>(0);
-	const [userFilter, setUserFilter] = useState<string>('');
-	const	[authString, setAuthString] = useState<string>('')
-	const { isAuth, username } = useGetCurrentUser()
-	const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
-	const { getDBAuditLogs } = useGetAuditLogInfo();
-	const paginCount: number = 10;
-	const upperUsername = username.toUpperCase();
-	const navigate = useNavigate();
-	const clearString = 'Clear-All-Audits';
+  const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
+  const [unsure, setUnsure] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const [hasNextPage, setHasNextPage] = useState<boolean>(true);
+  const [authString, setAuthString] = useState<string>('')
+  const { isAuth, username } = useGetCurrentUser()
+  const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
+  const { getDBAuditLogs } = useGetAuditLogInfo();
+  const upperUsername = username.toUpperCase();
+  const navigate = useNavigate();
+  const clearString = 'Clear-All-Audits';
 
-	const filteredAudits = useMemo(() => {
-		if (userFilter !== '') {
-			return auditLogs.filter(a => a.user === userFilter);
-		} else {
-			return auditLogs;
-		}
-	}, [auditLogs, userFilter])
+  useEffect(() => {
+    if (!isAuth) {
+      navigate('/');
+      return;
+    }
+  
+    const loadAuditLogs = async () => {
+      const result = await getDBAuditLogs(pageCursors[currentPage]);
+      setAuditLogs(result.list);
+      setHasNextPage(result.list.length === 10);
 
-	useEffect(() => {
-		if (!isAuth) {
-			navigate('/');
-			return;
-		}
-	
-		const loadAuditLogs = async () => {
-			const logs = await getDBAuditLogs(userFilter);
-			setAuditLogs(logs);
-			
-			const uniqueUsersSet = new Set<string>();
-			logs.forEach(log => {
-				uniqueUsersSet.add(log.user);
-			});
-			setUniqueUsers([...uniqueUsersSet]);
-		};
+      if (result.lastVisible && pageCursors.length <= currentPage + 1) {
+        setPageCursors(prev => [...prev, result.lastVisible]);
+      }
+    };
 
-		loadAuditLogs();
-	}, [userFilter, isAuth]);
-	
-	useEffect(() => {
-		setCurrentPage(0);
-	}, [userFilter]);
+    loadAuditLogs();
+  }, [isAuth, currentPage]);
 
-	useEffect(() => {
-		const totalPages = Math.ceil(filteredAudits.length/paginCount);
-		setMaxPages(totalPages);
+  const onLogout = () => {
+    localStorage.removeItem('currentUser');
+    navigate('/');
+  }
 
-		const pageItems: Audit[] = filteredAudits.slice(currentPage * paginCount, (currentPage * paginCount) + paginCount)
-		setCurrentPaginate(pageItems);
-	}, [auditLogs, currentPage, userFilter])
+  const paginate = (direction: string) => {
+    if (direction === 'previous' && currentPage > 0) {
+      setCurrentPage(currentPage - 1)
+    } else if (direction === 'next' && hasNextPage) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
 
-	const onLogout = () => {
-		localStorage.removeItem('currentUser');
-		navigate('/');
-	}
+  const clearAudits = async () => {
+    if (!unsure) {
+      alert('Are you sure you want to clear all audits? \nIf so, then type in Clear All Audits and click the button again.\nReload the page if this was a mistake.');
+      setUnsure(true);
+      return;
+    } else {
+      if (authString === clearString) {
+        await clearDBAudits();
+        await addDBAudit(
+          `${username} cleared all audits.`,
+          username,
+          new Date(Date.now())
+        );
 
-	const paginate = (direction: string) => {
-		if (direction === 'previous' && currentPage > 0) {
-			setCurrentPage(currentPage - 1)
-		} else if (direction === 'next' && currentPage < maxPages - 1) {
-			setCurrentPage(currentPage + 1)
-		}
-	}
-
-	const clearAudits = async () => {
-		if (!unsure) {
-			alert('Are you sure you want to clear all audits? \nIf so, then type in Clear All Audits and click the button again.\nReload the page if this was a mistake.');
-			setUnsure(true);
-			return;
-		} else {
-
-			if (authString === clearString) {
-				await clearDBAudits();
-				await addDBAudit(
-					`${username} cleared all audits.`,
-					username,
-					new Date(Date.now())
-				);
-
-				const logs = await getDBAuditLogs(userFilter);
-				setAuditLogs(logs);
-				setUniqueUsers([]);
-
-				setUnsure(false);
-			} else {
-				alert('The input code doesn\'t match. Reload the page if you change your mind.');
-			}			
-		}
-	}
+        setCurrentPage(0);
+        setPageCursors([null]);
+        setUnsure(false);
+      } else {
+        alert('The input code doesn\'t match. Reload the page if you change your mind.');
+      }     
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Audit Logs
         </h1>
-				<h1 className="block mx-auto px-4 py-2 text-center text-2xl font-bold text-black mb-6 flex gap-4 justify-center content-center">
-					{ upperUsername }
-					<button onClick={onLogout} className='text-center flex border rounded-lg px-2 py-1 text-lg bg-gray-300'>
-						Logout
-					</button>
-				</h1>
-
-				<div className="bg-slate-200 justify-around flex flex-col p-4 mb-2 rounded-lg border border-gray-200 shadow-md transition-all hover:shadow-lg duration-200">
-					<h1 className="text-2xl font-semibold text-center tracking-wide block flex-1">
-						Filter By:
-					</h1>
-					<span>
-						<label className="block text-sm font-medium text-gray-700 mb-1">
-							Name:
-						</label>
-						<select
-							value={userFilter}
-							onChange={(e) => { setUserFilter(e.target.value) }}
-
-							className="w-full p-2 border border-gray-400 rounded-lg shadow-sm bg-white focus:ring-blue-500 focus:border-blue-500">
-							<option value="">Choose user...</option>
-							{uniqueUsers.map((user) => (
-								<option key={user} value={user}>
-									{user}
-								</option>
-							))}
-						</select>
-					</span>
-				</div>
+        <h1 className="block mx-auto px-4 py-2 text-center text-2xl font-bold text-black mb-6 flex gap-4 justify-center content-center">
+          { upperUsername }
+          <button onClick={onLogout} className='text-center flex border rounded-lg px-2 py-1 text-lg bg-gray-300'>
+            Logout
+          </button>
+        </h1>
         <div className="bg-white border border-gray-200 rounded-md shadow-md p-6 hover:shadow-lg duration-200">
           {auditLogs.length === 0 ? (
             <p className="text-gray-500 text-lg text-center p-6">
@@ -144,7 +95,7 @@ const AuditLogs = () => {
           ) : (
             <>
               <div className="space-y-2">
-                {currentPaginate.map((audit: Audit, index) => (
+                {auditLogs.map((audit: Audit, index) => (
                   <div key={index} className="bg-gray-100 p-3 rounded-md hover:bg-gray-300 hover:scale-102 duration-300">
                     <p className="font-medium text-gray-800 text-sm">
                       {audit.message}
@@ -156,29 +107,27 @@ const AuditLogs = () => {
                   </div>
                 ))}
               </div>
-              {maxPages > 1 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <button
-                    onClick={() => paginate('previous')}
-                    disabled={currentPage === 0}
-                    className={`px-4 py-2 rounded-lg font-medium ${ currentPage === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
-                    Previous
-                  </button>
-                  <span className="text-gray-600 text-sm">
-                    Page {currentPage + 1} of {maxPages}
-                  </span>
-                  <button
-                    onClick={() => paginate('next')}
-                    disabled={currentPage >= maxPages - 1}
-                    className={`px-4 py-2 rounded-lg font-medium ${ currentPage >= maxPages - 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
-                    Next
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>
 
+				<div className="mt-4 flex items-center justify-between">
+					<button
+						onClick={() => paginate('previous')}
+						disabled={currentPage === 0}
+						className={`px-4 py-2 rounded-lg font-medium ${ currentPage === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
+						Previous
+					</button>
+					<span className="text-gray-600 text-sm">
+						Page {currentPage + 1}
+					</span>
+					<button
+						onClick={() => paginate('next')}
+						disabled={!hasNextPage}
+						className={`px-4 py-2 rounded-lg font-medium ${ !hasNextPage ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600' }`}>
+						Next
+					</button>
+				</div>
         <div className="mt-12 flex flex-col items-center gap-4">
           <NavLink to="/" className="w-full">
             <span className="block w-full text-center px-6 py-3 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
@@ -191,23 +140,23 @@ const AuditLogs = () => {
             </span>
           </NavLink>
         </div>
-				<div className='block'>
-					<h1 className='text-3xl text-red-500 font-black text-center mt-[50rem] mb-[50rem]'>Danger Zone</h1>
-					{ unsure && (
-						<input  
-							onChange={(e) => setAuthString(e.target.value)}
-							type="text" 
-							value={authString}
-							className='w-full px-2 py-1 text-center mb-8 border border-blue-500 text-xl rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700'
-							placeholder={clearString}
-						/>
-					)}
-					<button
+        <div className='block'>
+          <h1 className='text-3xl text-red-500 font-black text-center mt-[50rem] mb-[50rem]'>Danger Zone</h1>
+          { unsure && (
+            <input  
+              onChange={(e) => setAuthString(e.target.value)}
+              type="text" 
+              value={authString}
+              className='w-full px-2 py-1 text-center mb-8 border border-blue-500 text-xl rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700'
+              placeholder={clearString}
+            />
+          )}
+          <button
             onClick={clearAudits}
             className="w-full px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">
             Clear All Audits
           </button>
-				</div>
+        </div>
       </div>
     </div>
   );

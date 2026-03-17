@@ -5,12 +5,8 @@ import type { Audit } from "../interface";
 export const useGetAuditLogInfo = () => {
 	const auditLogRef = collection(db, 'audit logs');
 
-	const getDBAuditLogs = async (nameFilter: string, lastDoc: QueryDocumentSnapshot | null = null) => {
+	const getDBAuditLogs = async (lastDoc: QueryDocumentSnapshot | null = null) => {
     let q = query(auditLogRef, orderBy('time', 'desc'), limit(10));
-    
-    if (nameFilter) {
-      q = query(q, where('user', '==', nameFilter));
-    }
 
     if (lastDoc) {
       q = query(q, startAfter(lastDoc));
