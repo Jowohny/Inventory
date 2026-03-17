@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query, where, limit, startAfter, QueryDocumentSnapshot } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, limit, startAfter, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 import type { Audit } from "../interface";
 
