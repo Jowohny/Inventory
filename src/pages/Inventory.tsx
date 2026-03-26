@@ -77,18 +77,23 @@ const Inventory = () => {
 			return;
 		}
 
-		const loadContainers = async () => {
-			const containerList = await getDBContainers();
-			setContainers(containerList)
-		}
-
+		let unsubscribe: (() => void) | null = null;
+	
+		const loadContainers = () => {
+			unsubscribe = getDBContainers ((updated) => setContainers(updated));
+		};
+		
 		const loadCategories = async () => {
 			const categoriesList = await getDBCategories();
 			setCategories(categoriesList);
-		};
-
+		}
+	
 		loadContainers();
 		loadCategories();
+	
+		return () => {				
+			if (unsubscribe) unsubscribe();
+		};
   }, [isAuth]);
 
 	useEffect(() => {
