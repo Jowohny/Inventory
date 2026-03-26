@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { Category } from '../interface';
 import { useSetCategoryInfo } from '../hooks/useSetCategoryInfo'
 import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
-import { useGetCategoryInfo } from '../hooks/useGetCategoryInfo';
 import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
+import { useInventory } from '../contexts/InventoryContext';
 
 const Categories = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { categories } = useInventory();
   const [brand, setBrand] = useState('');
   const [style, setStyle] = useState('');
   const [size, setSize] = useState('');
@@ -17,7 +16,6 @@ const Categories = () => {
 	const [authString, setAuthString] = useState<string>('');
 	const { username, isAuth } = useGetCurrentUser();
 	const { addDBCategory, deleteDBCategory, clearDBCategories } = useSetCategoryInfo();
-	const { getDBCategories, findDBCategoryDuplicate } = useGetCategoryInfo()
 	const { addDBAudit } = useSetAuditLogInfo();
 	const upperUsername = username ? username.toUpperCase() : "";
 	const navigate = useNavigate();
@@ -28,13 +26,6 @@ const Categories = () => {
 			navigate('/');
 			return;
 		}
-		
-		const loadCategories = async () => {
-				const categoriesList = await getDBCategories();
-				setCategories(categoriesList);
-		};
-		
-		loadCategories();
   }, [isAuth]);
 
 	const onLogout = () => {
@@ -71,9 +62,11 @@ const Categories = () => {
   const addCategory = async () => {
     if (!brand.trim() || !style.trim() || !size.trim()) return;
 
-		const isDuplicate = await findDBCategoryDuplicate(brand.trim(), style.trim(), size.trim());
+		const isDuplicate = categories.find(cat => {
+			cat.brand === brand.trim().toLowerCase() && cat.size === style.trim().toLowerCase() && cat.size === size.trim().toLowerCase()
+		});
 
-    if (isDuplicate.success) {
+    if (isDuplicate) {
       alert('This category already exists!');
       return;
     }
@@ -86,27 +79,21 @@ const Categories = () => {
 			new Date(Date.now())
 		);
 
-		const categoriesList = await getDBCategories();
-		setCategories(categoriesList);
-
 		setSize('');
   };
 
   const deleteCategory = async (id: string) => {
     const categoryToDelete = categories.find(c => c.id === id);
 
+    if (!categoryToDelete) return; 
+
 		await deleteDBCategory(id);
 
-    if (!categoryToDelete) return; 
-		
 		await addDBAudit(
 			`${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
 			username,
 			new Date(Date.now())
 		);
-
-		const categoriesList = await getDBCategories();
-		setCategories(categoriesList);
   };
 
   const clearCategories = async () => {
@@ -123,9 +110,6 @@ const Categories = () => {
 					username,				
 					new Date(Date.now())
 				);
-
-				const categoriesList = await getDBCategories();
-				setCategories(categoriesList);
 			
 				setUnsure(false);
 			} else {

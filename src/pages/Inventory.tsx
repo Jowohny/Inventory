@@ -1,17 +1,15 @@
 import { useState, useEffect, useMemo, useRef} from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { Container, Category } from '../interface';
+import type { Category } from '../interface';
 import { useGetCurrentUser } from '../hooks/useGetCurrentUser';
 import { useSetContainerInfo } from '../hooks/useSetContainerInfo';
 import { useSetAuditLogInfo } from '../hooks/useSetAuditLogInfo';
-import { useGetCategoryInfo } from '../hooks/useGetCategoryInfo'
-import { useGetContainerInfo } from '../hooks/useGetContainerInfo'
 import { useSetItemInfo } from '../hooks/useSetItemInfo';
 import { useCleanupOrphanedItems } from '../hooks/useCleanupOrphanedItems';
+import { useInventory } from '../contexts/InventoryContext';
 
 const Inventory = () => {
-  const [containers, setContainers] = useState<Container[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+	const { containers, categories }= useInventory();
   const [newContainerName, setNewContainerName] = useState('');
   const [addingItemTo, setAddingItemTo] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState<number>(0);
@@ -38,8 +36,6 @@ const Inventory = () => {
 
 	const { addDBAudit } = useSetAuditLogInfo();
 	const { addDBContainer, deleteDBContainer, clearDBContainers } = useSetContainerInfo();
-	const { getDBCategories }  = useGetCategoryInfo();
-	const { getDBContainers } = useGetContainerInfo();
 	const { addItemToContainer, deleteItemFromContainer, adjustItemQuantityFromContainer } = useSetItemInfo();
 	const { cleanupOrphanedItems } = useCleanupOrphanedItems();
 	const upperUsername = username ? username.toUpperCase() : "";
@@ -64,7 +60,7 @@ const Inventory = () => {
 				if (filterSize && category.size !== filterSize) return false;
 				return true;
 			});
-		});
+		}).sort((a, b) => a.name.localeCompare(b.name));;
 	}, [filterBrand, filterSize, filterStyle, containerSearch, containers, categories]);
 
 	const currentPaginate = useMemo(() => {
@@ -76,24 +72,6 @@ const Inventory = () => {
 			navigate('/');
 			return;
 		}
-
-		let unsubscribe: (() => void) | null = null;
-	
-		const loadContainers = () => {
-			unsubscribe = getDBContainers ((updated) => setContainers(updated));
-		};
-		
-		const loadCategories = async () => {
-			const categoriesList = await getDBCategories();
-			setCategories(categoriesList);
-		}
-	
-		loadContainers();
-		loadCategories();
-	
-		return () => {				
-			if (unsubscribe) unsubscribe();
-		};
   }, [isAuth]);
 
 	useEffect(() => {
@@ -161,17 +139,11 @@ const Inventory = () => {
       return;
     }
 
-		const newId = Date.now().toString();
-    const newContainer: Container = { 
-      id: newId, 
-      name: newContainerName.trim(), 
-      items: [] 
-    };
-
-
-		await addDBContainer(Date.now().toString(), newContainerName.trim(), []);
-
-		setContainers(prev => [...prev, newContainer].sort((a, b) => a.name.localeCompare(b.name)));
+		await addDBContainer(
+			Date.now().toString(), 
+			newContainerName.trim(), 
+			[]
+		);
 		
 		await addDBAudit(
 			`${username} added a container. (${newContainerName.trim()})`,
@@ -191,17 +163,17 @@ const Inventory = () => {
 	}
 
   const deleteContainer = async (id: string) => {
-		await deleteDBContainer(id);
-
 		const containerDeleted = containers.find(c => c.id === id);
 
-		setContainers(prev => prev.filter(c => c.id !== id));
+		await deleteDBContainer(id);
 
-		await addDBAudit(
-			`${username} deleted a container. (${containerDeleted!.name.trim()})`,
-			username,
-			new Date(Date.now())
-		);
+		if (containerDeleted) {
+			await addDBAudit(
+				`${username} deleted a container. (${containerDeleted.name.trim()})`,
+				username,
+				new Date(Date.now())
+			);
+		}
   };
 
 	const addItem = async (containerId: string) => {
@@ -217,19 +189,6 @@ const Inventory = () => {
     const incrementBy = parseInt(quantity);
     const existingItem = itemContainer.items.find(i => i.categoryId === category.id);
     const newItemId = Date.now().toString();
-
-    setContainers(prev => prev.map(c => {
-      if (c.id !== containerId) return c;
-      let newItems;
-      if (existingItem) {
-        newItems = c.items.map(item => 
-          item.id === existingItem.id ? { ...item, quantity: item.quantity + incrementBy } : item
-        );
-      } else {
-        newItems = [...c.items, { id: newItemId, categoryId: category.id, quantity: incrementBy }];
-      }
-      return { ...c, items: newItems };
-    }));
 
     setAddingItemTo(null);
     setSelectedBrand('');
@@ -254,11 +213,6 @@ const Inventory = () => {
     if (!itemToDelete) return;
     const cat = categoryMap[itemToDelete.categoryId];
 
-    setContainers(prev => prev.map(c => {
-      if (c.id !== containerId) return c;
-      return { ...c, items: c.items.filter(i => i.id !== itemId) };
-    }));
-
     await deleteItemFromContainer(containerId, itemId, itemContainer.items);
     await addDBAudit(`${username} removed ${cat?.brand} from ${itemContainer.name}`, username, new Date());
   };
@@ -272,13 +226,6 @@ const Inventory = () => {
 
     const oldQty = item.quantity;
 
-    setContainers(prev => prev.map(c => {
-      if (c.id !== containerId) return c;
-      return {
-        ...c,
-        items: c.items.map(i => i.id === itemId ? { ...i, quantity: newQuantity } : i)
-      };
-    }));
     setEditingQuantity(null);
 
     const results = await adjustItemQuantityFromContainer(containerId, itemId, newQuantity, itemContainer.items);
