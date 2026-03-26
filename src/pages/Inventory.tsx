@@ -107,10 +107,10 @@ const Inventory = () => {
 
 	useEffect(() => {
 		if (prevCategoriesLengthRef.current > 0 && categories.length < prevCategoriesLengthRef.current) {
-			cleanupOrphanedItems(categories);
+			cleanupOrphanedItems(categories, containers);
 		}
 		prevCategoriesLengthRef.current = categories.length;
-	}, [categories, cleanupOrphanedItems]);
+	}, [categories, containers, cleanupOrphanedItems]);
 
 	const totalInventory = useMemo(() => {
 		const groups: { [categoryId: string]: number } = {};
