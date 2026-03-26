@@ -2,12 +2,13 @@ import Inventory from "./pages/Inventory";
 import Categories from "./pages/Categories";
 import AuditLogs from "./pages/AuditLogs";
 import Login from "./pages/Login"
+import { InventoryProvider } from "./contexts/InventoryContext";
 import { Route, Routes } from "react-router-dom";
 
 
 const App = () => {
 	return (
-		<>
+		<InventoryProvider>
 			<div className="flex justify-center round-full">
 				<img className="w-3/4 md:w-1/4 rounded-full" src="/logo.jpg"/>
 			</div>
@@ -17,7 +18,7 @@ const App = () => {
 				<Route path='/categories' element={<Categories />}/>
 				<Route path='/auditlogs' element={<AuditLogs />}/>
 			</Routes>
-		</>
+		</InventoryProvider>
 	);
 }
 
