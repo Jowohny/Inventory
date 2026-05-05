@@ -1,5 +1,6 @@
 export interface Category {
   id: string;
+  docId: string;
   brand: string;
   style: string;
   size: string;

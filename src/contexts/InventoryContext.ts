@@ -19,12 +19,24 @@ export const InventoryProvider = ({children}: {children: React.ReactNode}) => {
     const categoryQuery = query(collection(db, 'categories'))
 
     const unsubContainers = onSnapshot(containerQuery, (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, items: doc.data().items } as Container));
+      const list = snapshot.docs.map(containerDoc => {
+        const data = containerDoc.data();
+        return { id: containerDoc.id, name: data.name, items: data.items ?? [] } as Container;
+      });
       setContainers(list);
     });
 
     const unsubCategories = onSnapshot(categoryQuery, (snapshot) => {
-      const list = snapshot.docs.map(doc => ({ id: doc.data().id, brand: doc.data().brand, style: doc.data().style, size: doc.data().size } as Category));
+      const list = snapshot.docs.map(categoryDoc => {
+        const data = categoryDoc.data();
+        return {
+          id: data.id ?? categoryDoc.id,
+          docId: categoryDoc.id,
+          brand: data.brand,
+          style: data.style,
+          size: data.size,
+        } as Category;
+      });
       setCategories(list);
     });
 

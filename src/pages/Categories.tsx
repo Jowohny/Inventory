@@ -26,7 +26,7 @@ const Categories = () => {
 			navigate('/');
 			return;
 		}
-  }, [isAuth]);
+  }, [isAuth, navigate]);
 
 	const onLogout = () => {
 		localStorage.removeItem('currentUser');
@@ -36,7 +36,7 @@ const Categories = () => {
   const groupedCategories = useMemo(() => {
     const groups: {
       [brand: string]: {
-        [style: string]: { id: string; size: string }[];
+        [style: string]: { id: string; docId: string; size: string }[];
       };
     } = {};
 
@@ -53,6 +53,7 @@ const Categories = () => {
       }
       groups[category.brand][category.style].push({
         id: category.id,
+        docId: category.docId,
         size: category.size,
       });
     });
@@ -62,9 +63,15 @@ const Categories = () => {
   const addCategory = async () => {
     if (!brand.trim() || !style.trim() || !size.trim()) return;
 
-		const isDuplicate = categories.find(cat => {
-			cat.brand === brand.trim().toLowerCase() && cat.size === style.trim().toLowerCase() && cat.size === size.trim().toLowerCase()
-		});
+			const normalizedBrand = brand.trim().toLowerCase();
+			const normalizedStyle = style.trim().toLowerCase();
+			const normalizedSize = size.trim().toLowerCase();
+
+			const isDuplicate = categories.some(cat => 
+				cat.brand.trim().toLowerCase() === normalizedBrand &&
+				cat.style.trim().toLowerCase() === normalizedStyle &&
+				cat.size.trim().toLowerCase() === normalizedSize
+			);
 
     if (isDuplicate) {
       alert('This category already exists!');
@@ -82,12 +89,12 @@ const Categories = () => {
 		setSize('');
   };
 
-  const deleteCategory = async (id: string) => {
-    const categoryToDelete = categories.find(c => c.id === id);
+  const deleteCategory = async (docId: string) => {
+    const categoryToDelete = categories.find(c => c.docId === docId);
 
     if (!categoryToDelete) return; 
 
-		await deleteDBCategory(id);
+		await deleteDBCategory(docId);
 
 		await addDBAudit(
 			`${username} deleted category: ${categoryToDelete.size} ${categoryToDelete.brand} ${categoryToDelete.style}`,
@@ -238,7 +245,7 @@ const Categories = () => {
                                         Size: {item.size}
                                       </span>
                                       <button
-                                        onClick={() => deleteCategory(item.id)}
+                                        onClick={() => deleteCategory(item.docId)}
                                         className="px-3 py-1 rounded-md text-sm font-medium bg-red-500 text-red-800 hover:bg-red-700 transition-colors">
                                         <img src="delete.png" className='w-4 h-4'/>
                                       </button>
