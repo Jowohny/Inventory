@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, getDocs } from "firebase/firestore";
+import { addDoc, collection, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "../config/firebase-config";
 
 export const useSetAuditLogInfo = () => {
@@ -15,7 +15,11 @@ export const useSetAuditLogInfo = () => {
 	const clearDBAudits = async () => {
 		const snapshot = await getDocs(auditLogRef);
 
-		snapshot.forEach(async (doc) => { await deleteDoc(doc.ref) })
+		for (let i = 0; i < snapshot.docs.length; i += 500) {
+			const batch = writeBatch(db);
+			snapshot.docs.slice(i, i + 500).forEach((doc) => batch.delete(doc.ref));
+			await batch.commit();
+		}
 	}
 
 	return { addDBAudit, clearDBAudits }

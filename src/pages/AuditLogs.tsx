@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Audit } from "../interface"
 import { NavLink, useNavigate } from "react-router-dom"
 import { useSetAuditLogInfo } from "../hooks/useSetAuditLogInfo"
@@ -10,13 +10,13 @@ const AuditLogs = () => {
   const [auditLogs, setAuditLogs] = useState<Audit[]>([]);
   const [unsure, setUnsure] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(0);
-  const [pageCursors, setPageCursors] = useState<(QueryDocumentSnapshot | null)[]>([null]);
+  const pageCursors = useRef<(QueryDocumentSnapshot | null)[]>([null]);
   const [hasNextPage, setHasNextPage] = useState<boolean>(true);
   const [authString, setAuthString] = useState<string>('')
   const { isAuth, username } = useGetCurrentUser()
   const { clearDBAudits, addDBAudit } = useSetAuditLogInfo();
   const { getDBAuditLogs } = useGetAuditLogInfo();
-  const upperUsername = username.toUpperCase();
+  const upperUsername = username ? username.toUpperCase() : "";
   const navigate = useNavigate();
   const clearString = 'Clear-All-Audits';
 
@@ -26,18 +26,25 @@ const AuditLogs = () => {
       return;
     }
   
+    let isCurrent = true;
+
     const loadAuditLogs = async () => {
-      const result = await getDBAuditLogs(pageCursors[currentPage]);
+      const result = await getDBAuditLogs(pageCursors.current[currentPage]);
+      if (!isCurrent) return;
+
       setAuditLogs(result.list);
       setHasNextPage(result.list.length === 10);
 
-      if (result.lastVisible && pageCursors.length <= currentPage + 1) {
-        setPageCursors(prev => [...prev, result.lastVisible]);
+      if (result.lastVisible && pageCursors.current.length <= currentPage + 1) {
+        pageCursors.current = [...pageCursors.current, result.lastVisible];
       }
     };
 
     loadAuditLogs();
-  }, [isAuth, currentPage]);
+    return () => {
+      isCurrent = false;
+    };
+  }, [isAuth, currentPage, getDBAuditLogs, navigate]);
 
   const onLogout = () => {
     localStorage.removeItem('currentUser');
@@ -67,7 +74,7 @@ const AuditLogs = () => {
         );
 
         setCurrentPage(0);
-        setPageCursors([null]);
+        pageCursors.current = [null];
         setUnsure(false);
       } else {
         alert('The input code doesn\'t match. Reload the page if you change your mind.');

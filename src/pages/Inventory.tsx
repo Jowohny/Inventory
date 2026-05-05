@@ -72,7 +72,7 @@ const Inventory = () => {
 			navigate('/');
 			return;
 		}
-  }, [isAuth]);
+  }, [isAuth, navigate]);
 
 	useEffect(() => {
 		setMaxPages(Math.ceil(filteredContainers.length / paginCount));
@@ -186,9 +186,11 @@ const Inventory = () => {
     const itemContainer = containers.find(c => c.id === containerId);
     if (!itemContainer || !category) return;
 
-    const incrementBy = parseInt(quantity);
-    const existingItem = itemContainer.items.find(i => i.categoryId === category.id);
-    const newItemId = Date.now().toString();
+	    const incrementBy = Number.parseInt(quantity, 10);
+	    if (!Number.isInteger(incrementBy) || incrementBy <= 0) return;
+
+	    const existingItem = itemContainer.items.find(i => i.categoryId === category.id);
+	    const newItemId = Date.now().toString();
 
     setAddingItemTo(null);
     setSelectedBrand('');
@@ -224,11 +226,17 @@ const Inventory = () => {
     const item = itemContainer.items.find(i => i.id === itemId);
     if (!item) return;
 
-    const oldQty = item.quantity;
+	    const oldQty = item.quantity;
 
-    setEditingQuantity(null);
+	    if (oldQty === newQuantity) {
+	      setEditingQuantity(null);
+	      setEditingQuantityValue('');
+	      return;
+	    }
 
-    const results = await adjustItemQuantityFromContainer(containerId, itemId, newQuantity, itemContainer.items);
+	    setEditingQuantity(null);
+
+	    const results = await adjustItemQuantityFromContainer(containerId, itemId, newQuantity, itemContainer.items);
     const cat = categoryMap[item.categoryId];
     
     if (results && cat) {
@@ -242,7 +250,7 @@ const Inventory = () => {
 	};
 
 	const saveQuantity = (containerId: string, itemId: string) => {
-		const numValue = parseInt(editingQuantityValue);
+		const numValue = Number.parseInt(editingQuantityValue, 10);
 		if (!isNaN(numValue) && numValue >= 0) {
 			updateItemQuantity(containerId, itemId, numValue);
 		}

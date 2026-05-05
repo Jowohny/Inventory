@@ -24,18 +24,22 @@ export const useSetItemInfo = () => {
 		};
 	}
 
-	const adjustItemQuantityFromContainer = async (containerID: string, itemID: string, quantity: number, currentItems: Item[]) => {
-		const containerDoc = doc(db, "containers", containerID);
-		const items = [...currentItems];
-		const index = items.findIndex(item => item.id === itemID);
+		const adjustItemQuantityFromContainer = async (containerID: string, itemID: string, quantity: number, currentItems: Item[]) => {
+			const containerDoc = doc(db, "containers", containerID);
+			const items = [...currentItems];
+			const index = items.findIndex(item => item.id === itemID);
 
-		if (index === -1) {
-			return null;
-		}
+			if (index === -1 || !Number.isFinite(quantity) || quantity < 0) {
+				return null;
+			}
 
-		const previousQuantity = items[index].quantity;
+			const previousQuantity = items[index].quantity;
 
-		items[index] = { ...items[index], quantity: quantity };
+			if (previousQuantity === quantity) {
+				return null;
+			}
+
+			items[index] = { ...items[index], quantity: quantity };
 
 		await updateDoc(containerDoc, {
 			items: items,

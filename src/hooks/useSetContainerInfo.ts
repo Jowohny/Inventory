@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs, writeBatch } from "firebase/firestore";
 import type { Item } from "../interface";
 import { db } from "../config/firebase-config";
 
@@ -21,10 +21,13 @@ export const useSetContainerInfo = () => {
 	const clearDBContainers = async () => {
 		const snapshot = await getDocs(containerRef)
 
-		snapshot.forEach(async (snap) => { await deleteDoc(snap.ref) })
+		for (let i = 0; i < snapshot.docs.length; i += 500) {
+			const batch = writeBatch(db);
+			snapshot.docs.slice(i, i + 500).forEach((snap) => batch.delete(snap.ref));
+			await batch.commit();
+		}
 	}
 
 
 	return { addDBContainer, deleteDBContainer, clearDBContainers };
 }
-
