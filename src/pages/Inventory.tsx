@@ -25,6 +25,7 @@ const Inventory = () => {
 	const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
 	const [containerSearch, setContainerSearch] = useState<string>('');
+	const [itemSearch, setItemSearch] = useState<string>('');
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
 	const	[authString, setAuthString] = useState<string>('')
@@ -46,22 +47,28 @@ const Inventory = () => {
 	const MAX_SHOWCASE = 8;
 
 	const filteredContainers = useMemo(() => {
+		const itemSearchLower = itemSearch.trim().toLowerCase();
+
 		return containers.filter(container => {
 			const matchesSearch = container.name.toLowerCase().includes(containerSearch.toLowerCase());
 			if (!matchesSearch) return false;
-	
-			if (!filterBrand && !filterStyle && !filterSize) return true;
-	
+
+			if (!filterBrand && !filterStyle && !filterSize && !itemSearchLower) return true;
+
 			return container.items.some(item => {
 				const category = categories.find(c => c.id === item.categoryId);
 				if (!category) return false;
 				if (filterBrand && category.brand !== filterBrand) return false;
 				if (filterStyle && category.style !== filterStyle) return false;
 				if (filterSize && category.size !== filterSize) return false;
+				if (itemSearchLower) {
+					const haystack = `${category.brand} ${category.style} ${category.size}`.toLowerCase();
+					if (!haystack.includes(itemSearchLower)) return false;
+				}
 				return true;
 			});
 		}).sort((a, b) => a.name.localeCompare(b.name));;
-	}, [filterBrand, filterSize, filterStyle, containerSearch, containers, categories]);
+	}, [filterBrand, filterSize, filterStyle, containerSearch, itemSearch, containers, categories]);
 
 	const currentPaginate = useMemo(() => {
 		return filteredContainers.slice(currentPage*paginCount, (currentPage*paginCount)+paginCount)
@@ -80,11 +87,11 @@ const Inventory = () => {
 
 	useEffect(() => {
 		setContainerPages({});
-	}, [filterBrand, filterStyle, filterSize]);
+	}, [filterBrand, filterStyle, filterSize, itemSearch]);
 
 	useEffect(() => {
 		setCurrentPage(0);
-	}, [filterBrand, filterStyle, filterSize, containerSearch]);
+	}, [filterBrand, filterStyle, filterSize, containerSearch, itemSearch]);
 
 	const categoryMap = useMemo(() => {
 		const map: Record<string, Category> = {};
@@ -350,6 +357,15 @@ const Inventory = () => {
 							placeholder='Search among existing containers...'
 							className='px-2 py-1 rounded-lg border border-gray-200 flex-1 focus:ring-blue-500 focus:border-blue-500 shadow-sm'/>
 					</div>
+					<div className='block w-full flex mb-3'>
+						<label className='text-lg font-medium mr-4'>Search Items: </label>
+						<input
+							type="text"
+							value={itemSearch}
+							onChange={(e) => setItemSearch(e.target.value)}
+							placeholder='Search by item name (e.g. "white")...'
+							className='px-2 py-1 rounded-lg border border-gray-200 flex-1 focus:ring-blue-500 focus:border-blue-500 shadow-sm'/>
+					</div>
 					<div className='ml-4 block flex space-x-2 flex-row'>
 						<select
 							value={filterBrand}
@@ -440,12 +456,17 @@ const Inventory = () => {
 
 								<div className="space-y-2 mb-4">
 									{(() => {
+										const itemSearchLower = itemSearch.trim().toLowerCase();
 										const filteredItems = container.items.filter((item) => {
 											const cat = itemCategories[item.id];
 											if (!cat) return false;
 											if (filterBrand && cat.brand !== filterBrand) return false;
 											if (filterStyle && cat.style !== filterStyle) return false;
 											if (filterSize && cat.size !== filterSize) return false;
+											if (itemSearchLower) {
+												const haystack = `${cat.brand} ${cat.style} ${cat.size}`.toLowerCase();
+												if (!haystack.includes(itemSearchLower)) return false;
+											}
 											return true;
 										});
 
