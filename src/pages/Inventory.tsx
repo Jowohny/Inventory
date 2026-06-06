@@ -26,6 +26,7 @@ const Inventory = () => {
 	const [editingQuantityValue, setEditingQuantityValue] = useState<string>('');
 	const [containerSearch, setContainerSearch] = useState<string>('');
 	const [itemSearch, setItemSearch] = useState<string>('');
+	const [pendingDelete, setPendingDelete] = useState<{ containerId: string; itemId: string } | null>(null);
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
 	const	[authString, setAuthString] = useState<string>('')
@@ -211,7 +212,7 @@ const Inventory = () => {
       await addItemToContainer(containerId, { id: newItemId, categoryId: category.id, quantity: incrementBy }, itemContainer.items);
     }
 
-    await addDBAudit(`${username} added ${incrementBy} of ${category.brand} to ${itemContainer.name}`, username, new Date());
+    await addDBAudit(`${username} added ${incrementBy} of ${category.brand} ${category.style} ${category.size} to ${itemContainer.name}`, username, new Date());
   };
 
   const deleteItem = async (containerId: string, itemId: string) => {
@@ -223,7 +224,7 @@ const Inventory = () => {
     const cat = categoryMap[itemToDelete.categoryId];
 
     await deleteItemFromContainer(containerId, itemId, itemContainer.items);
-    await addDBAudit(`${username} removed ${cat?.brand} ${cat?.style} ${cat?.size} from ${itemContainer.name}`, username, new Date());
+    await addDBAudit(`${username} removed ${itemToDelete.quantity} ${cat?.brand} ${cat?.style} ${cat?.size} from ${itemContainer.name}`, username, new Date());
   };
 
 	const updateItemQuantity = async (containerId: string, itemId: string, newQuantity: number) => {
@@ -314,8 +315,45 @@ const Inventory = () => {
     return [...new Set(sizes)];
   };
 
+	const confirmDelete = async () => {
+		if (!pendingDelete) return;
+		const { containerId, itemId } = pendingDelete;
+		setPendingDelete(null);
+		await deleteItem(containerId, itemId);
+	};
+
+	const pendingDeleteCategory = pendingDelete ? itemCategories[pendingDelete.itemId] : null;
+
 	return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setPendingDelete(null)}>
+          <div
+            className="bg-white rounded-xl shadow-xl border border-gray-200 max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Delete this item?</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              {pendingDeleteCategory
+                ? `${pendingDeleteCategory.brand} - ${pendingDeleteCategory.style} - ${pendingDeleteCategory.size}`
+                : 'This item'} will be removed from the container.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="px-4 py-2 rounded-lg font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-full md:max-w-4xl mx-auto">
         <h1 className="text-3xl text-center font-bold text-gray-900 mb-6">
           Inventory Tracker
@@ -520,7 +558,7 @@ const Inventory = () => {
 																			Edit
 																		</button>
 																		<button
-																			onClick={() => deleteItem(container.id, item.id)}
+																			onClick={() => setPendingDelete({ containerId: container.id, itemId: item.id })}
 																			className="px-3 py-1 ml-2 rounded-md text-sm bg-pink-300 font-bold text-pink-800 hover:bg-pink-500">
 																			-
 																		</button>
