@@ -27,6 +27,7 @@ const Inventory = () => {
 	const [containerSearch, setContainerSearch] = useState<string>('');
 	const [itemSearch, setItemSearch] = useState<string>('');
 	const [pendingDelete, setPendingDelete] = useState<{ containerId: string; itemId: string } | null>(null);
+	const [pendingContainerDelete, setPendingContainerDelete] = useState<string | null>(null);
 	const [itemCategories, setItemCategories] = useState<Record<string, Category | null>>({});
 	const [containerPages, setContainerPages] = useState<Record<string, number>>({});
 	const	[authString, setAuthString] = useState<string>('')
@@ -324,6 +325,17 @@ const Inventory = () => {
 
 	const pendingDeleteCategory = pendingDelete ? itemCategories[pendingDelete.itemId] : null;
 
+	const confirmContainerDelete = async () => {
+		if (!pendingContainerDelete) return;
+		const id = pendingContainerDelete;
+		setPendingContainerDelete(null);
+		await deleteContainer(id);
+	};
+
+	const pendingDeleteContainer = pendingContainerDelete
+		? containers.find(c => c.id === pendingContainerDelete)
+		: null;
+
 	return (
     <div className="min-h-screen bg-gray-50 p-6">
       {pendingDelete && (
@@ -347,6 +359,34 @@ const Inventory = () => {
               </button>
               <button
                 onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingContainerDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setPendingContainerDelete(null)}>
+          <div
+            className="bg-white rounded-xl shadow-xl border border-gray-200 max-w-sm w-full p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Delete this container?</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              {pendingDeleteContainer
+                ? `"${pendingDeleteContainer.name}" and all its items`
+                : 'This container'} will be permanently removed.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setPendingContainerDelete(null)}
+                className="px-4 py-2 rounded-lg font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Cancel
+              </button>
+              <button
+                onClick={confirmContainerDelete}
                 className="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700">
                 Delete
               </button>
@@ -486,7 +526,7 @@ const Inventory = () => {
                     {container.name}
                   </h3>
                   <button
-                    onClick={() => deleteContainer(container.id)}
+                    onClick={() => setPendingContainerDelete(container.id)}
                     className="flex-shrink-0 bg-red-500 rounded-full p-2 hover:bg-red-700 transition-colors">
                     <img src="/delete.png" className="h-5 w-5" alt="Delete"/>
                   </button>
