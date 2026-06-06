@@ -223,7 +223,7 @@ const Inventory = () => {
     const cat = categoryMap[itemToDelete.categoryId];
 
     await deleteItemFromContainer(containerId, itemId, itemContainer.items);
-    await addDBAudit(`${username} removed ${cat?.brand} from ${itemContainer.name}`, username, new Date());
+    await addDBAudit(`${username} removed ${cat?.brand} ${cat?.style} ${cat?.size} from ${itemContainer.name}`, username, new Date());
   };
 
 	const updateItemQuantity = async (containerId: string, itemId: string, newQuantity: number) => {
@@ -247,7 +247,7 @@ const Inventory = () => {
     const cat = categoryMap[item.categoryId];
     
     if (results && cat) {
-      await addDBAudit(`${username} updated ${cat.brand} qty: ${oldQty} -> ${newQuantity}`, username, new Date());
+      await addDBAudit(`${username} updated ${cat.brand} ${cat?.style} ${cat?.size} qty: ${oldQty} -> ${newQuantity}`, username, new Date());
     }
   };
 
